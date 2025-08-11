@@ -58,8 +58,3 @@ todesktop.json
 
 # C extensions
 *.so
-
-
-pretrained_models/
-
-uv.lock
