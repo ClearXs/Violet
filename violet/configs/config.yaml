@@ -1,0 +1,5 @@
+agent_name: violet
+model_name: minicpm4-8b
+model_endpoint: http://192.168.110.184:1234/v1
+generation_config:
+  context_window: 32768
