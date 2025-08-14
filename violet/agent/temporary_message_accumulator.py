@@ -31,10 +31,9 @@ class TemporaryMessageAccumulator:
     for memory absorption into different agent types.
     """
 
-    def __init__(self, client, google_client, timezone, upload_manager, message_queue,
+    def __init__(self, client, timezone, upload_manager, message_queue,
                  model_name, temporary_message_limit=TEMPORARY_MESSAGE_LIMIT):
         self.client = client
-        self.google_client = google_client
         self.timezone = timezone
         self.upload_manager = upload_manager
         self.message_queue = message_queue

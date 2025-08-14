@@ -1,21 +1,29 @@
+from pathlib import Path
 from typing import Optional
 from llama_cpp import Llama
 
+from violet.config import VioletConfig
 from violet.log import get_logger
 from llama_cpp.llama_chat_format import MiniCPMv26ChatHandler, Qwen25VLChatHandler
 
 logger = get_logger(__name__)
 
-local_foundation_model = None
+config = VioletConfig.load()
 
+model_storage_path = Path(config.recall_storage_path) / 'models'
+
+if model_storage_path.exists() is False:
+    model_storage_path.mkdir(parents=True, exist_ok=True)
+
+local_foundation_model = None
 local_embedding_model = None
 
 
-def load_local_model_from_path(model: str,
-                               path: str,
-                               mmproj_path: Optional[str],
-                               n_ctx: int = 512,
-                               **kwargs):
+def load_local_model(model: str,
+                     path: str,
+                     mmproj_path: Optional[str],
+                     n_ctx: int = 512,
+                     **kwargs):
     """
     Load a local model from the specified path.
 
@@ -40,6 +48,7 @@ def load_local_model_from_path(model: str,
             llm = Llama(
                 model_path=path,
                 n_ctx=n_ctx,
+                verbose=False,
                 **kwargs
             )
 

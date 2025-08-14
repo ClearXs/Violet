@@ -40,7 +40,7 @@ def set_field(config, section, field, value):
 @dataclass
 class VioletConfig:
     config_path: str = os.getenv(
-        "MEMGPT_CONFIG_PATH") or os.path.join(VIOLET_DIR, "config")
+        "VIOLET_CONFIG_PATH") or os.path.join(VIOLET_DIR, "config")
 
     # preset
     preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
@@ -113,8 +113,8 @@ class VioletConfig:
         config = configparser.ConfigParser()
 
         # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
+        if os.getenv("VIOLET_CONFIG_PATH"):
+            config_path = os.getenv("VIOLET_CONFIG_PATH")
         else:
             config_path = VioletConfig.config_path
 

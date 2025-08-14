@@ -14,16 +14,12 @@ logger = get_logger(__name__)
 cwd = os.getcwd()
 
 model_name = "BitCPM4-1B-q4_0.gguf"
-model_path = cwd + '/violet/tests/models/' + model_name
-
-example_image_path = cwd + '/violet/tests/images/image.png'
 
 
 @pytest.fixture()
 def llama_config():
     return LLMConfig(
-        model="BitCPM4-1B-q4_0",
-        model_path=model_path,
+        model=model_name,
         context_window=4096
     )
 
@@ -35,6 +31,7 @@ async def test_request(llama_config):
     message: Message = Message(role="user", content=[
                                TextContent(type='text', text="who are you?")])
     messages = [message]
+    res = client.send_llm_request(messages=messages)
     res = client.send_llm_request(messages=messages)
 
     assert res is not None

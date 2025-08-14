@@ -1,5 +1,4 @@
 agent_name: violet
-model_name: minicpm4-8b
-model_endpoint: http://192.168.110.184:1234/v1
+model_name: BitCPM4-1B-q4_0.gguf
 generation_config:
   context_window: 32768

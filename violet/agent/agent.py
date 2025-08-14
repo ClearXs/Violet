@@ -1549,7 +1549,6 @@ These keywords have been used to retrieve relevant memories from the database.
         """Runs a single step in the agent loop (generates at most one LLM call)"""
 
         try:
-
             # Step 0: get in-context messages and get the raw system prompt
             in_context_messages = self.agent_manager.get_in_context_messages(
                 agent_id=self.agent_state.id, actor=self.user)

@@ -51,11 +51,10 @@ class LLMConfig(BaseModel):
         "bedrock",
         "deepseek",
         "xai",
+        "llama",
     ]] = Field(None, description="The endpoint type for the model.")
     model_endpoint: Optional[str] = Field(
         None, description="The endpoint for the model.")
-    model_path: Optional[str] = Field(
-        None, description="The path to the model.")
     mmproj_model_path: Optional[str] = Field(
         None, description="Multi-modal projection model path. as llm vision module.")
     model_wrapper: Optional[str] = Field(

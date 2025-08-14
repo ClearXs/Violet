@@ -55,16 +55,29 @@ class LlamaClient(LLMClientBase):
                  use_tool_naming=True):
         super().__init__(llm_config, put_inner_thoughts_first, use_tool_naming)
 
-        from violet.llama.llama import local_foundation_model, load_from_local
+        from violet.llama.llama import local_foundation_model, load_local_model, model_storage_path
 
         if local_foundation_model is None:
             model = llm_config.model
-            model_path = llm_config.model_path
+            if model.endswith('.gguf'):
+                model_path = model_storage_path / model
+            else:
+                model_path = model_storage_path / f"{model}.gguf"
+
+            if model_path.exists() is False:
+                logger.error(f"Model file not found: {model_path}")
+                raise FileNotFoundError(f"Model file not found: {model_path}")
+
             model_config = llm_config.model_config
             mmproj_model_path = llm_config.mmproj_model_path
             context_window = llm_config.context_window
-            self.local_llama = load_from_local(
-                model, model_path, mmproj_model_path, context_window, **model_config)
+
+            self.local_llama = load_local_model(
+                model,
+                str(model_path),
+                mmproj_model_path,
+                context_window,
+                **model_config)
         else:
             self.local_llama = local_foundation_model
 

@@ -219,17 +219,9 @@ class AgentWrapper():
         # Track missing API keys for frontend to query
         self.missing_api_keys = []
 
-        # Initialize upload manager and URI tracking for file handling
-        if self.model_name in GEMINI_MODELS:
-            success = self._initialize_gemini_components()
-            if not success:
-                self.missing_api_keys.append('GEMINI_API_KEY')
-        else:
-            # For non-GEMINI models, initialize minimal components
-            self.google_client = None
-            self.existing_files = []
-            self.uri_to_create_time = {}
-            self.upload_manager = None
+        self.existing_files = []
+        self.uri_to_create_time = {}
+        self.upload_manager = None
 
         print(f"🔄 Initializing model: {self.model_name}")
 
@@ -239,7 +231,6 @@ class AgentWrapper():
         # Initialize temporary message accumulator for ALL violet models
         self.temp_message_accumulator = TemporaryMessageAccumulator(
             client=self.client,
-            google_client=self.google_client,
             timezone=self.timezone,
             upload_manager=self.upload_manager,
             message_queue=self.message_queue,
@@ -553,7 +544,6 @@ class AgentWrapper():
         else:
             # Custom provider - use custom config or fallback to OpenAI-compatible
             if custom_agent_config is not None:
-                assert 'model_endpoint' in custom_agent_config, "model_endpoint is required for custom models"
                 llm_config = LLMConfig(
                     model=model_name,
                     model_endpoint_type="openai",
@@ -563,11 +553,10 @@ class AgentWrapper():
                     **custom_agent_config.get('generation_config', {})
                 )
             else:
-                assert 'model_endpoint' in self.agent_config, "model_endpoint is required for custom models"
                 llm_config = LLMConfig(
                     model=model_name,
-                    model_endpoint_type="openai",
-                    model_endpoint=self.agent_config['model_endpoint'],
+                    model_endpoint_type="llama",
+                    model_endpoint=self.agent_config.get('model_endpoint', ''),
                     model_wrapper=None,
                     api_key=self.agent_config.get('api_key'),
                     **self.agent_config.get('generation_config', {})
@@ -1452,17 +1441,6 @@ Please perform this analysis and create new memories as appropriate. Provide a d
                      display_intermediate_message=None,
                      force_absorb_content=False,
                      async_upload=True):
-
-        # Check if Gemini features are required but not available
-        if self.model_name in GEMINI_MODELS and not self.is_gemini_client_initialized():
-            if images is not None or image_uris is not None or voice_files is not None:
-                self.logger.warning(
-                    "Warning: Gemini API key not configured. Image and voice features are unavailable.")
-                self.logger.warning(
-                    "Please provide a Gemini API key through the frontend to enable these features.")
-                # For now, proceed with text-only message if available
-                if message is None:
-                    return "Error: Gemini API key required for image/voice features. Please configure it in the settings."
 
         if memorizing:
 
