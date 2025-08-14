@@ -1,4 +1,6 @@
-Next Generation Interaction System.
+# Violet
+
+_Next Generation Interaction System._
 
 ## Soul
 
@@ -12,7 +14,7 @@ Next Generation Interaction System.
 - Vision Module
 - Base-Foundation Module
 
-## Internalization
+## I18n
 
 support english, chinese, japanese.
 
