@@ -2,7 +2,7 @@ from violet.constants import BUILD_EMBEDDINGS_FOR_MEMORY
 from violet.settings import settings
 from violet.services.utils import build_query, update_timezone
 from violet.schemas.embedding_config import EmbeddingConfig
-from violet.embeddings import embedding_model, parse_and_chunk_text
+from violet.llm_api.embeddings import embedding_model, parse_and_chunk_text
 from violet.schemas.agent import AgentState
 from rank_bm25 import BM25Okapi
 from rapidfuzz import fuzz

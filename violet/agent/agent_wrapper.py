@@ -1,32 +1,17 @@
-import io
 import os
-import re
 import time
 import json
 import yaml
 import uuid
-import copy
 import pytz
-import openai
 import base64
-import tiktoken
-import traceback
-import warnings
 import threading
-import numpy as np
-from pydub import AudioSegment
-from tqdm import tqdm
-from google import genai
-from functools import partial
 from dotenv import load_dotenv
-from datetime import datetime, timezone
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from violet.utils import parse_json
-from typing import Optional
-import queue
 from PIL import Image
 import logging
-from .app_utils import encode_image_from_pil, encode_image
+from .app_utils import encode_image
 
 # Import the separated components
 from violet.agent.message_queue import MessageQueue
@@ -122,7 +107,6 @@ class AgentWrapper():
         self.client = create_client()
         self.client.set_default_llm_config(
             LLMConfig.default_config("gpt-4o-mini"))
-        # self.client.set_default_embedding_config(EmbeddingConfig.default_config("text-embedding-3-small"))
         self.client.set_default_embedding_config(
             EmbeddingConfig.default_config("text-embedding-004"))
 
@@ -190,7 +174,7 @@ class AgentWrapper():
 
             core_memory = ChatMemory(
                 human="",
-                persona="You are a helpful personal assitant who can help the user remember things."
+                persona="You are a helpful personal assistant who can help the user remember things."
             )
 
             # Create agents in a loop using imported configuration
@@ -265,10 +249,6 @@ class AgentWrapper():
 
         # Pass URI tracking to accumulator
         self.temp_message_accumulator.uri_to_create_time = self.uri_to_create_time
-
-        # For GEMINI models, extract all unprocessed images and fill temporary_messages
-        if self.model_name in GEMINI_MODELS and self.google_client is not None:
-            self._process_existing_uploaded_files()
 
     def update_chat_agent_system_prompt(self, is_screen_monitoring: bool):
         '''
@@ -427,92 +407,6 @@ class AgentWrapper():
 
     def set_include_recent_screenshots(self, include_recent_screenshots: bool):
         self.include_recent_screenshots = include_recent_screenshots
-
-    def _initialize_gemini_components(self) -> bool:
-        """
-        Initialize Gemini client and related components.
-        Returns True if successful, False if API key is missing or initialization fails.
-        """
-        load_dotenv()
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
-        gemini_override_key = self.client.server.provider_manager.get_gemini_override_key()
-        gemini_api_key = gemini_override_key or gemini_api_key
-
-        if not gemini_api_key:
-            self.logger.info(
-                "Info: GEMINI_API_KEY not found. Gemini features will be available after API key is provided.")
-            self.google_client = None
-            self.existing_files = []
-            self.uri_to_create_time = {}
-            self.upload_manager = None
-            return False
-
-        try:
-            self.google_client = genai.Client(api_key=gemini_api_key)
-
-            # self.logger.info("Retrieving existing files from Google Clouds...")
-
-            # try:
-            #     existing_files = [x for x in self.google_client.files.list()]
-            # except Exception as e:
-            #     self.logger.error(f"Error retrieving existing files from Google Clouds: {e}")
-            #     existing_files = []
-            # existing_image_names = set([file.name for file in existing_files])
-
-            # self.logger.info(f"# of Existing files in Google Clouds: {len(existing_image_names)}")
-
-            existing_files = []
-            existing_image_names = set([file.name for file in existing_files])
-
-            # update the database, delete the files that are in the database but got deleted somehow (potentially due to the calls unrelated to Violet) in the cloud
-            for file_name in self.client.server.cloud_file_mapping_manager.list_all_cloud_file_ids():
-                if file_name not in existing_image_names:
-                    self.client.server.cloud_file_mapping_manager.delete_mapping(
-                        cloud_file_id=file_name)
-                else:
-                    assert file_name in existing_image_names
-
-            # after this: every file in database, we can find it in the cloud
-            # i.e., local database <= cloud
-
-            cloud_file_names_in_database_set = set(
-                self.client.server.cloud_file_mapping_manager.list_all_cloud_file_ids())
-
-            # since there might be images that belong to other projects, we need to delete those in `existing_files`
-            remaining_indices = []
-            for idx, file in enumerate(existing_files):
-                if file.name in cloud_file_names_in_database_set:
-                    remaining_indices.append(idx)
-
-            # after this, every file in 'existing_files', we can find it in the database
-
-            for file_name in self.client.server.cloud_file_mapping_manager.list_all_cloud_file_ids():
-                assert file_name in existing_image_names
-
-            existing_files = [existing_files[i] for i in remaining_indices]
-            self.existing_files = existing_files
-            self.uri_to_create_time = {file.uri: {
-                'create_time': file.create_time, 'filename': file.name} for file in existing_files}
-
-            self.logger.info(
-                f"# of Existing files in Google Clouds that belong to Violet: {len(self.uri_to_create_time)}")
-
-            # Initialize upload manager for GEMINI models
-            self.upload_manager = UploadManager(
-                self.google_client, self.client, self.existing_files, self.uri_to_create_time)
-
-            return True
-
-        except Exception as e:
-            self.logger.warning(
-                f"Warning: Failed to initialize Gemini client: {e}")
-            self.logger.warning(
-                "Gemini features will be unavailable until a valid API key is provided.")
-            self.google_client = None
-            self.existing_files = []
-            self.uri_to_create_time = {}
-            self.upload_manager = None
-            return False
 
     def _process_existing_uploaded_files(self):
         """Process any existing uploaded files for Gemini models."""
@@ -1829,49 +1723,7 @@ Please perform this analysis and create new memories as appropriate. Provide a d
 
         result = {'success': False, 'message': ''}
 
-        # Handle specific initialization for different services
-        if key_name == 'GEMINI_API_KEY':
-            # Save to database using provider_manager
-            try:
-                # Create or update the Google AI provider in the database
-                self.client.server.provider_manager.upsert_provider(
-                    name="google_ai",
-                    api_key=api_key,
-                    organization_id=self.client.user.organization_id,
-                    actor=self.client.user
-                )
-                result['success'] = True
-                result['message'] = 'Gemini API key successfully saved to database!'
-            except Exception as e:
-                result['message'] = f'Failed to save Gemini API key to database: {str(e)}'
-                return result
-
-            if self.model_name not in GEMINI_MODELS:
-                result[
-                    'message'] = f"Gemini API key saved but not needed for current model: {self.model_name}"
-                return result
-
-            # Try to initialize Gemini client with the provided key
-            try:
-                self.google_client = genai.Client(api_key=api_key)
-
-                # Complete the initialization
-                success = self._complete_gemini_initialization()
-                if success:
-                    # Remove from missing keys list
-                    if 'GEMINI_API_KEY' in self.missing_api_keys:
-                        self.missing_api_keys.remove('GEMINI_API_KEY')
-
-                    result['message'] = 'Gemini API key successfully saved to database and Gemini client initialized!'
-                else:
-                    result['message'] = 'Gemini API key saved to database but failed to complete initialization'
-
-            except Exception as e:
-                result[
-                    'message'] = f'Gemini API key saved to database but validation failed: {str(e)}'
-                self.google_client = None
-
-        elif key_name == 'OPENAI_API_KEY':
+        if key_name == 'OPENAI_API_KEY':
             # Save to database using provider_manager
             try:
                 # Create or update the OpenAI provider in the database
@@ -1890,28 +1742,8 @@ Please perform this analysis and create new memories as appropriate. Provide a d
             # Remove from missing keys list
             if 'OPENAI_API_KEY' in self.missing_api_keys:
                 self.missing_api_keys.remove('OPENAI_API_KEY')
-
-        elif key_name == 'ANTHROPIC_API_KEY':
-            # Save to database using provider_manager
-            try:
-                # Create or update the Anthropic provider in the database
-                self.client.server.provider_manager.upsert_provider(
-                    name="anthropic",
-                    api_key=api_key,
-                    organization_id=self.client.user.organization_id,
-                    actor=self.client.user
-                )
-                result['success'] = True
-                result['message'] = 'Anthropic API key successfully saved to database!'
-            except Exception as e:
-                result['message'] = f'Failed to save Anthropic API key to database: {str(e)}'
-                return result
-
-            # Remove from missing keys list
-            if 'ANTHROPIC_API_KEY' in self.missing_api_keys:
-                self.missing_api_keys.remove('ANTHROPIC_API_KEY')
-
         else:
+            # TODO add default client from llama
             # For any other API key, just confirm it was provided
             result['success'] = True
             result['message'] = f'{key_name} successfully configured!'

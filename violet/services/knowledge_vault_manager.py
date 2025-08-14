@@ -15,7 +15,7 @@ from violet.utils import enforce_types
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func, text
 from violet.schemas.agent import AgentState
-from violet.embeddings import embedding_model
+from violet.llm_api.embeddings import embedding_model
 from difflib import SequenceMatcher
 from violet.services.utils import build_query, update_timezone
 from violet.settings import settings

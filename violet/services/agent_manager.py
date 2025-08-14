@@ -9,7 +9,7 @@ from violet.constants import (
     EPISODIC_MEMORY_TOOLS, PROCEDURAL_MEMORY_TOOLS, SEMANTIC_MEMORY_TOOLS,
     RESOURCE_MEMORY_TOOLS, KNOWLEDGE_VAULT_TOOLS, META_MEMORY_TOOLS, UNIVERSAL_MEMORY_TOOLS, CHAT_AGENT_TOOLS, SEARCH_MEMORY_TOOLS
 )
-from violet.embeddings import embedding_model
+from violet.llm_api.embeddings import embedding_model
 from violet.log import get_logger
 from violet.orm import Agent as AgentModel
 from violet.orm import Block as BlockModel

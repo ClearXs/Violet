@@ -8,7 +8,7 @@ from violet.constants import (
 )
 from violet.orm.sqlite_functions import adapt_array
 from violet.schemas.embedding_config import EmbeddingConfig
-from violet.embeddings import embedding_model, parse_and_chunk_text
+from violet.llm_api.embeddings import embedding_model, parse_and_chunk_text
 from sqlalchemy import Select, func, literal, select, union_all
 from functools import wraps
 import pytz

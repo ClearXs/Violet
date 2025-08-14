@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 
 from violet.schemas.agent import AgentState
-from violet.embeddings import embedding_model, parse_and_chunk_text
+from violet.llm_api.embeddings import embedding_model, parse_and_chunk_text
 from violet.schemas.embedding_config import EmbeddingConfig
 from sqlalchemy import Select, func, literal, select, union_all
 from violet.services.utils import build_query, update_timezone

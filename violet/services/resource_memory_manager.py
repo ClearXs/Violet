@@ -7,7 +7,7 @@ import time
 
 from rank_bm25 import BM25Okapi
 from violet.orm.errors import NoResultFound
-from violet.embeddings import embedding_model, parse_and_chunk_text
+from violet.llm_api.embeddings import embedding_model, parse_and_chunk_text
 from violet.orm.resource_memory import ResourceMemoryItem
 from violet.schemas.user import User as PydanticUser
 from violet.schemas.resource_memory import (

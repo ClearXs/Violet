@@ -1,17 +1,15 @@
 import logging
-import time
 import os
 import base64
 import hashlib
 import shutil
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Union
-from urllib.parse import urlparse
+from typing import Callable, Dict,  List, Optional, Union
 
 import requests
 
 import violet.utils
-from violet.constants import ADMIN_PREFIX, META_MEMORY_TOOLS, CORE_MEMORY_TOOLS, BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA, FUNCTION_RETURN_CHAR_LIMIT
+from violet.constants import META_MEMORY_TOOLS, BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA, FUNCTION_RETURN_CHAR_LIMIT
 from violet.functions.functions import parse_source_code
 from violet.orm.errors import NoResultFound
 from violet.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgent
@@ -20,7 +18,7 @@ from violet.schemas.embedding_config import EmbeddingConfig
 from violet.schemas.violet_message_content import TextContent, ImageContent, FileContent, CloudFileContent, MessageContentType
 
 # new schemas
-from violet.schemas.enums import JobStatus, MessageRole
+from violet.schemas.enums import MessageRole
 from violet.schemas.environment_variables import (
     SandboxEnvironmentVariable,
     SandboxEnvironmentVariableCreate,

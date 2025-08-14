@@ -44,6 +44,8 @@ class EmbeddingConfig(BaseModel):
         None, description="The endpoint for the model (`None` if local).")
     embedding_model: str = Field(...,
                                  description="The model for the embedding.")
+    embedding_model_path: Optional[str] = Field(
+        None, description="local embedding model path.")
     embedding_dim: int = Field(...,
                                description="The dimension of the embedding.")
     embedding_chunk_size: Optional[int] = Field(

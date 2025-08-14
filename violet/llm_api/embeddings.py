@@ -131,20 +131,6 @@ class EmbeddingEndpoint:
         return self._call_api(text)
 
 
-class AzureOpenAIEmbedding:
-    def __init__(self, api_endpoint: str, api_key: str, api_version: str, model: str):
-        from openai import AzureOpenAI
-
-        self.client = AzureOpenAI(
-            api_key=api_key, api_version=api_version, azure_endpoint=api_endpoint)
-        self.model = model
-
-    def get_text_embedding(self, text: str):
-        embeddings = self.client.embeddings.create(
-            input=[text], model=self.model).data[0].embedding
-        return embeddings
-
-
 class OllamaEmbeddings:
 
     # Format:
@@ -209,56 +195,6 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
         )
         return model
 
-    elif endpoint_type == "google_ai":
-        # Use Google AI (Gemini) for embeddings
-        from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
-        from violet.services.provider_manager import ProviderManager
-
-        # Check for database-stored API key first, fall back to model_settings
-        override_key = ProviderManager().get_gemini_override_key()
-        api_key = override_key if override_key else model_settings.gemini_api_key
-
-        model = GoogleGenAIEmbedding(
-            model_name=config.embedding_model,
-            api_key=api_key,
-            api_base=config.embedding_endpoint,
-        )
-        return model
-
-    elif endpoint_type == "azure":
-        assert all(
-            [
-                model_settings.azure_api_key is not None,
-                model_settings.azure_base_url is not None,
-                model_settings.azure_api_version is not None,
-            ]
-        )
-        # from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
-
-        # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
-        # model = "text-embedding-3-small"
-        # deployment = credentials.azure_embedding_deployment if credentials.azure_embedding_deployment is not None else model
-        # return AzureOpenAIEmbedding(
-        #    model=model,
-        #    deployment_name=deployment,
-        #    api_key=credentials.azure_key,
-        #    azure_endpoint=credentials.azure_endpoint,
-        #    api_version=credentials.azure_version,
-        # )
-
-        return AzureOpenAIEmbedding(
-            api_endpoint=model_settings.azure_base_url,
-            api_key=model_settings.azure_api_key,
-            api_version=model_settings.azure_api_version,
-            model=config.embedding_model,
-        )
-
-    elif endpoint_type == "hugging-face":
-        return EmbeddingEndpoint(
-            model=config.embedding_model,
-            base_url=config.embedding_endpoint,
-            user=user_id,
-        )
     elif endpoint_type == "ollama":
 
         model = OllamaEmbeddings(

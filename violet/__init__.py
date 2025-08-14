@@ -1,3 +1,5 @@
+__version__ = "0.1.0"
+
 # import clients
 from violet.client.client import LocalClient, create_client
 

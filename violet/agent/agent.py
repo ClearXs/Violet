@@ -64,7 +64,7 @@ from violet.services.step_manager import StepManager
 from violet.services.user_manager import UserManager
 from violet.services.tool_execution_sandbox import ToolExecutionSandbox
 from violet.settings import summarizer_settings
-from violet.embeddings import embedding_model
+from violet.llm_api.embeddings import embedding_model
 from violet.system import get_contine_chaining, get_token_limit_warning, package_function_response, package_summarize_message, package_user_message
 from violet.llm_api.llm_client import LLMClient
 from violet.utils import (

@@ -18,7 +18,7 @@ from rapidfuzz import fuzz
 from rank_bm25 import BM25Okapi
 from violet.settings import settings
 from violet.schemas.agent import AgentState
-from violet.embeddings import embedding_model, parse_and_chunk_text
+from violet.llm_api.embeddings import embedding_model, parse_and_chunk_text
 from violet.services.utils import build_query, update_timezone
 from violet.helpers.converters import deserialize_vector
 from violet.constants import BUILD_EMBEDDINGS_FOR_MEMORY
