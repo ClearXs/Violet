@@ -15,8 +15,20 @@ async def test_initial():
     agent_wrapper = AgentWrapper(agent_config_file=config_path)
 
     agent_wrapper.send_message(
-        message="petty like computer-game",
+        message="peter likes computer-games",
         memorizing=True,
-        force_absorb_content=True,)
+        force_absorb_content=True)
+
+    assert agent_wrapper is not None
+
+
+@pytest.mark.asyncio
+async def test_query_memory():
+    agent_wrapper = AgentWrapper(agent_config_file=config_path)
+
+    agent_wrapper.send_message(
+        message="peter like what?",
+        memorizing=False,
+        force_absorb_content=True)
 
     assert agent_wrapper is not None

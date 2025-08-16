@@ -3,13 +3,12 @@ import os
 from typing import List, Optional
 
 from llama_cpp import Llama
-from violet.errors import LLMError
 from violet.llm_api.llm_client_base import LLMClientBase
 from violet.log import get_logger
 from violet.schemas.llm_config import LLMConfig
 from violet.schemas.message import Message
 from violet.schemas.openai.chat_completion_response import ChatCompletionResponse
-from violet.schemas.openai.chat_completion_request import ChatCompletionRequest
+from violet.schemas.openai.chat_completion_request import ChatCompletionRequest, FunctionCall, ToolFunctionChoice
 from violet.schemas.openai.chat_completion_request import FunctionSchema
 from violet.schemas.openai.chat_completion_request import Tool as OpenAITool
 from violet.schemas.openai.chat_completion_request import cast_message_to_subtype
@@ -106,7 +105,7 @@ class LlamaClient(LLMClientBase):
                 put_inner_thoughts_first=True,
             )
 
-        openai_message_list = [
+        llama_message_list = [
             cast_message_to_subtype(
                 m.to_openai_dict(
                     put_inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs,
@@ -115,6 +114,27 @@ class LlamaClient(LLMClientBase):
             )
             for m in messages
         ]
+
+        # llama_message_list = []
+        # for m in messages:
+        #     m_dict = m.to_llama_dict(
+        #         put_inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs,
+        #         use_developer_message=False,
+        #     )
+        #     if isinstance(m_dict, list):
+        #         for part in m_dict:
+        #             message = cast_message_to_subtype(part)
+        #             llama_message_list.append(message)
+        #     else:
+        #         message = cast_message_to_subtype(m_dict)
+        #         llama_message_list.append(message)
+
+        tool_choice = 'auto'
+
+        # error: supported string values: none, auto, required
+        if force_tool_call is not None:
+            tool_choice = ToolFunctionChoice(
+                type="function", function=FunctionCall(name=force_tool_call))
 
         if llm_config.model:
             model = llm_config.model
@@ -125,10 +145,10 @@ class LlamaClient(LLMClientBase):
 
         data = ChatCompletionRequest(
             model=model,
-            messages=self.fill_image_content_in_messages(openai_message_list),
+            messages=self.fill_image_content_in_messages(llama_message_list),
             tools=[OpenAITool(type="function", function=f)
                    for f in tools] if tools else None,
-            tool_choice="required",
+            tool_choice=tool_choice,
             user=str(),
             max_completion_tokens=llm_config.max_tokens,
             temperature=llm_config.temperature,
@@ -151,9 +171,15 @@ class LlamaClient(LLMClientBase):
         """
         Performs underlying request to llm and returns raw response.
         """
-        response = self.local_llama.create_chat_completion_openai_v1(
+        from openai.types.chat import ChatCompletion, ChatCompletionChunk
+
+        response = self.local_llama.create_chat_completion(
             **request_data)
-        return response.model_dump()
+
+        if request_data.get('stream', False):
+            return (ChatCompletionChunk(**chunk) for chunk in response)
+
+        return ChatCompletion(**response).model_dump()
 
     def convert_response_to_chat_completion(
         self,
@@ -272,14 +298,4 @@ class LlamaClient(LLMClientBase):
         return new_message_list
 
     def handle_llm_error(self, e: Exception) -> Exception:
-        """
-        Maps provider-specific errors to common LLMError types.
-        Each LLM provider should implement this to translate their specific errors.
-
-        Args:
-            e: The original provider-specific exception
-
-        Returns:
-            An LLMError subclass that represents the error in a provider-agnostic way
-        """
-        return LLMError(f"Unhandled LLM error: {str(e)}")
+        return super().handle_llm_error(e)

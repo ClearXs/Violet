@@ -150,7 +150,7 @@ class Settings(BaseSettings):
     multi_agent_concurrent_sends: int = 50
 
     # telemetry logging
-    verbose_telemetry_logging: bool = False
+    verbose_telemetry_logging: bool = True
     # otel default: "http://localhost:4317"
     otel_exporter_otlp_endpoint: Optional[str] = None
     disable_tracing: bool = False

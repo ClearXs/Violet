@@ -132,7 +132,8 @@ class OpenAIClient(LLMClientBase):
 
         # error: supported string values: none, auto, required
         # if force_tool_call is not None:
-        #     tool_choice = ToolFunctionChoice(type="function", function=ToolFunctionChoiceFunctionCall(name=force_tool_call))
+            # tool_choice = ToolFunctionChoice(
+            #     type="function", function=ToolFunctionChoiceFunctionCall(name=force_tool_call))
 
         data = ChatCompletionRequest(
             model=model,

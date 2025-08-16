@@ -162,6 +162,43 @@ class OllamaEmbeddings:
         return response_json["embedding"]
 
 
+class LlamaEmbeddings:
+
+    def __init__(self, embeddings_config: EmbeddingConfig):
+        self.embeddings_config = embeddings_config
+        from violet.llama.llama import local_embeddings_model, load_local_embeddings_model, model_storage_path
+
+        embedding_model = embeddings_config.embedding_model
+
+        if local_embeddings_model is None:
+            embedding_model_path = None
+
+            if embedding_model.endswith(".gguf"):
+                embedding_model_path = model_storage_path / embedding_model
+            else:
+                embedding_model_path = model_storage_path / \
+                    (embedding_model + ".gguf")
+
+            if embedding_model_path.exists() is False:
+                raise FileNotFoundError(
+                    f"Embedding model not found at {embedding_model_path}")
+
+            # through llama load local embedding model
+            local_embeddings_model = load_local_embeddings_model(
+                model=embedding_model,
+                path=str(embedding_model_path))
+
+            self.local_embeddings_model = local_embeddings_model
+        else:
+            self.local_embeddings_model = local_embeddings_model
+
+    def get_text_embedding(self, text: str) -> List[float]:
+        res = self.local_embeddings_model.create_embedding(
+            text, model=self.embeddings_config.embedding_model)
+
+        return res['data'][0]['embedding']
+
+
 def query_embedding(embedding_model, query_text: str):
     """Generate padded embedding for querying database"""
     query_vec = embedding_model.get_text_embedding(query_text)
@@ -201,6 +238,13 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
             model=config.embedding_model,
             base_url=config.embedding_endpoint,
             ollama_additional_kwargs={},
+        )
+        return model
+
+    elif endpoint_type == 'llama':
+
+        model = LlamaEmbeddings(
+            embeddings_config=config
         )
         return model
 

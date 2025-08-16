@@ -13,7 +13,8 @@ logger = get_logger(__name__)
 
 cwd = os.getcwd()
 
-model_name = "BitCPM4-1B-q4_0.gguf"
+model_name = "Qwen3-0.6B-Q3_K_L.gguf"
+example_image_path = cwd + '/violet/tests/images/image.png'
 
 
 @pytest.fixture()
@@ -29,7 +30,7 @@ async def test_request(llama_config):
     client = LlamaClient(llm_config=llama_config)
 
     message: Message = Message(role="user", content=[
-                               TextContent(type='text', text="who are you?")])
+                               TextContent(type='text', text="who are you?/no_think")])
     messages = [message]
     res = client.send_llm_request(messages=messages)
     res = client.send_llm_request(messages=messages)

@@ -30,6 +30,7 @@ from violet.schemas.violet_message import (
     UserMessage,
 )
 from violet.schemas.violet_message_content import (
+    MessageContentType,
     VioletMessageContentUnion,
     ReasoningContent,
     RedactedReasoningContent,
@@ -1179,6 +1180,116 @@ class Message(BaseMessage):
             raise ValueError(self.role)
 
         return cohere_message
+
+    def to_llama_dict(
+        self,
+        max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN,
+        put_inner_thoughts_in_kwargs: bool = False,
+        use_developer_message: bool = False,
+    ) -> dict | List[dict]:
+        """Go from Message class to ChatCompletion message object"""
+
+        if self.content and len(self.content) == 1 and isinstance(self.content[0], TextContent):
+            content = self.content[0].text
+        # Otherwise, check if we have TextContent and multiple other parts
+        elif self.content and len(self.content) > 1:
+            content = []
+            text_content_count = 0
+
+            for content_part in self.content:
+                if isinstance(content_part, TextContent):
+                    content.append({
+                        'type': 'text',
+                        'text': content_part.text,
+                    })
+                elif isinstance(content_part, ImageContent):
+                    content.append({
+                        'type': content_part.type,
+                        'image_id': content_part.image_id,
+                        'detail': content_part.detail,
+                    })
+                elif isinstance(content_part, FileContent):
+                    content.append({
+                        'type': content_part.type,
+                        'file_id': content_part.file_id,
+                    })
+                elif isinstance(content_part, CloudFileContent):
+                    content.append({
+                        'type': content_part.type,
+                        'cloud_file_uri': content_part.cloud_file_uri,
+                    })
+                else:
+                    raise ValueError(
+                        f"Invalid content type: {content_part.type}")
+        else:
+            content = None
+
+        # merge multi-content to one transform if content is TextContent.
+        # otherwise independent become single content.
+        def multi_content_to_multi_message(role: str, content: str | List[str]):
+            if content is None:
+                return {"role": role}
+
+            if isinstance(content, str):
+                return {"content": content, "role": role}
+
+            messages = []
+            texts = []
+            for part in content:
+                if part['type'] == MessageContentType.text:
+                    texts.append(part['text'])
+                else:
+                    messages.append({"content": part, "role": role})
+            if len(texts) > 0:
+                messages.append({"content": "\n".join(texts), "role": role})
+            return messages
+
+        if self.role == "system":
+            assert all([v is not None for v in [self.role]]), vars(self)
+            llama_message = multi_content_to_multi_message(
+                "developer" if use_developer_message else self.role, content)
+
+        elif self.role == "user":
+            assert all([v is not None for v in [
+                       content, self.role]]), vars(self)
+            llama_message = multi_content_to_multi_message(self.role, content)
+
+        elif self.role == "assistant":
+            assert self.tool_calls is not None or content is not None
+            llama_message = multi_content_to_multi_message(
+                self.role, None if put_inner_thoughts_in_kwargs else content)
+
+            if self.tool_calls is not None:
+                if put_inner_thoughts_in_kwargs:
+                    # put the inner thoughts inside the tool call before casting to a dict
+                    llama_message["tool_calls"] = [
+                        add_inner_thoughts_to_tool_call(
+                            tool_call,
+                            inner_thoughts=content,
+                            inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                        ).model_dump()
+                        for tool_call in self.tool_calls
+                    ]
+                else:
+                    llama_message["tool_calls"] = [
+                        tool_call.model_dump() for tool_call in self.tool_calls]
+                if max_tool_id_length:
+                    for tool_call_dict in llama_message["tool_calls"]:
+                        tool_call_dict["id"] = tool_call_dict["id"][:max_tool_id_length]
+
+        elif self.role == "tool":
+            assert all([v is not None for v in [
+                       self.role, self.tool_call_id]]), vars(self)
+            llama_message = {
+                "content": content,
+                "role": self.role,
+                "tool_call_id": self.tool_call_id[:max_tool_id_length] if max_tool_id_length else self.tool_call_id,
+            }
+
+        else:
+            raise ValueError(self.role)
+
+        return llama_message
 
     @staticmethod
     def generate_otid_from_id(message_id: str, index: int) -> str:

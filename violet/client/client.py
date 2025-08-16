@@ -891,6 +891,17 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
+    def update_agent_config(
+        self,
+        agent_id: str,
+        llm_config: Optional[LLMConfig] = None,
+    ):
+        return self.server.agent_manager.update_llm_config(
+            agent_id=agent_id,
+            llm_config=llm_config,
+            actor=self.server.user_manager.get_user_by_id(self.user.id)
+        )
+
     def get_tools_from_agent(self, agent_id: str) -> List[Tool]:
         """
         Get tools from an existing agent.

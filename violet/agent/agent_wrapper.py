@@ -110,6 +110,17 @@ class AgentWrapper():
         self.client.set_default_embedding_config(
             EmbeddingConfig.default_config("text-embedding-004"))
 
+        llm_config = LLMConfig(
+            model=agent_config.get('model_name'),
+            model_endpoint_type=agent_config.get(
+                'model_endpoint_type', 'openai'),
+            model_endpoint=agent_config.get('model_endpoint', ''),
+            api_key=agent_config.get('api_key'),
+            **agent_config.get('generation_config', {})
+        )
+
+        self.client.set_default_llm_config(llm_config=llm_config)
+
         # Initialize agent states container
         self.agent_states = AgentStates()
 
@@ -120,26 +131,32 @@ class AgentWrapper():
             all_agent_states = self.client.list_agents()
 
             for agent_state in all_agent_states:
+                # Update agent state to llm_config
+                new_agent_state = self.client.update_agent_config(
+                    agent_id=agent_state.id,
+                    llm_config=llm_config
+                )
+
                 if agent_state.name == 'chat_agent':
-                    self.agent_states.agent_state = agent_state
+                    self.agent_states.agent_state = new_agent_state
                 elif agent_state.name == 'episodic_memory_agent':
-                    self.agent_states.episodic_memory_agent_state = agent_state
+                    self.agent_states.episodic_memory_agent_state = new_agent_state
                 elif agent_state.name == 'procedural_memory_agent':
-                    self.agent_states.procedural_memory_agent_state = agent_state
+                    self.agent_states.procedural_memory_agent_state = new_agent_state
                 elif agent_state.name == 'knowledge_vault_agent':
-                    self.agent_states.knowledge_vault_agent_state = agent_state
+                    self.agent_states.knowledge_vault_agent_state = new_agent_state
                 elif agent_state.name == 'meta_memory_agent':
-                    self.agent_states.meta_memory_agent_state = agent_state
+                    self.agent_states.meta_memory_agent_state = new_agent_state
                 elif agent_state.name == 'semantic_memory_agent':
-                    self.agent_states.semantic_memory_agent_state = agent_state
+                    self.agent_states.semantic_memory_agent_state = new_agent_state
                 elif agent_state.name == 'core_memory_agent':
-                    self.agent_states.core_memory_agent_state = agent_state
+                    self.agent_states.core_memory_agent_state = new_agent_state
                 elif agent_state.name == 'resource_memory_agent':
-                    self.agent_states.resource_memory_agent_state = agent_state
+                    self.agent_states.resource_memory_agent_state = new_agent_state
                 elif agent_state.name == 'reflexion_agent':
-                    self.agent_states.reflexion_agent_state = agent_state
+                    self.agent_states.reflexion_agent_state = new_agent_state
                 elif agent_state.name == 'background_agent':
-                    self.agent_states.background_agent_state = agent_state
+                    self.agent_states.background_agent_state = new_agent_state
 
                 system_prompt = gpt_system.get_system_text(
                     'base/' + agent_state.name) if not self.is_screen_monitor else gpt_system.get_system_text('screen_monitor/' + agent_state.name)
@@ -572,29 +589,6 @@ class AgentWrapper():
         try:
             self.model_name = model_name
 
-            # Determine the effective provider
-            provider = self._determine_model_provider(
-                model_name, custom_agent_config)
-
-            # Create LLM config based on provider
-            llm_config = self._create_llm_config_for_provider(
-                model_name, provider, custom_agent_config)
-
-            # Update LLM config for the client
-            self.client.set_default_llm_config(llm_config)
-            self.client.server.agent_manager.update_llm_config(
-                agent_id=self.agent_states.agent_state.id,
-                llm_config=llm_config,
-                actor=self.client.user
-            )
-            # set the model for reflexion agent
-            self.client.server.agent_manager.update_llm_config(
-                agent_id=self.agent_states.reflexion_agent_state.id,
-                llm_config=llm_config,
-                actor=self.client.user
-            )
-
-            # Check for missing API keys for the new model
             status = self.check_api_key_status()
 
             result = {
@@ -621,66 +615,8 @@ class AgentWrapper():
     def set_memory_model(self, new_model, custom_agent_config: dict = None):
         """Set the model specifically for memory management operations"""
 
-        # Define allowed memory models
-        ALLOWED_MEMORY_MODELS = GEMINI_MODELS + OPENAI_MODELS
-
-        # Determine the effective provider
-        provider = self._determine_model_provider(
-            new_model, custom_agent_config)
-
-        # Validate the model - allow custom models to proceed with validation
-        if new_model not in ALLOWED_MEMORY_MODELS and not custom_agent_config and not hasattr(self, 'agent_config'):
-            # Invalid model and no custom config
-            self.logger.warning(
-                f'Invalid memory model. Only {", ".join(ALLOWED_MEMORY_MODELS)} are supported.')
-
-        llm_config = self._create_llm_config_for_provider(
-            new_model, provider, custom_agent_config)
-
-        # Update only the memory-related agents (all agents except chat_agent)
-        memory_agent_names = [
-            'episodic_memory_agent',
-            'procedural_memory_agent',
-            'knowledge_vault_agent',
-            'meta_memory_agent',
-            'semantic_memory_agent',
-            'core_memory_agent',
-            'resource_memory_agent',
-            'reflexion_agent',
-            'background_agent'
-        ]
-
-        for agent_state in self.client.list_agents():
-            if agent_state.name in memory_agent_names:
-                self.client.server.agent_manager.update_llm_config(
-                    agent_id=agent_state.id,
-                    llm_config=llm_config,
-                    actor=self.client.user
-                )
-
         # Update the memory model name
         self.memory_model_name = new_model
-
-        # Update temp_message_accumulator needs_upload based on the new model
-        if hasattr(self, 'temp_message_accumulator'):
-            self.temp_message_accumulator.update_model(new_model)
-
-        # Determine required keys based on model type
-        required_keys = []
-        if new_model in GEMINI_MODELS:
-            required_keys = ['GEMINI_API_KEY']
-        elif new_model in OPENAI_MODELS:
-            required_keys = ['OPENAI_API_KEY']
-
-        return {
-            'success': True,
-            'message': f'Memory model set to {new_model} successfully.',
-            'missing_keys': [],
-            'model_requirements': {
-                'current_model': new_model,
-                'required_keys': required_keys
-            }
-        }
 
     def get_current_model(self) -> str:
         """
