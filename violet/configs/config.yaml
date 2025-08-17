@@ -1,4 +1,9 @@
 agent_name: violet
-model_name: BitCPM4-1B-q4_0.gguf
+model_name: MiniCPM4-8B-Q4_K_M.gguf
+model_endpoint_type: llama
+# model_name: deepseek-chat
+# model_endpoint: https://api.deepseek.com/v1
+# model_endpoint_type: openai
+# api_key: sk-9bb1f94a8ed6422eaee38dc7759ac94e
 generation_config:
   context_window: 32768

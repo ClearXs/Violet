@@ -32,7 +32,7 @@ def load_local_model(model: str,
     Support Multi-Modal model loading.
     """
 
-    log_telemetry(logger=logger, event='load_model',
+    log_telemetry(logger=logger, event='load_llama_model',
                   **{"model": model, "path": path})
 
     global local_foundation_model
@@ -49,6 +49,7 @@ def load_local_model(model: str,
             chat_format="chatml-function-calling",
             n_ctx=n_ctx,
             verbose=False,
+            n_gpu_layers=99,
             **kwargs
         )
 
