@@ -1,50 +1,129 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { useEffect, useRef } from 'react';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const sceneRef = useRef<HTMLDivElement>(null);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  useEffect(() => {
+    // renderer
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    // 添加这行设置渲染器尺寸
+    renderer.setSize(600, 400);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    sceneRef.current?.appendChild(renderer.domElement);
+
+    // camera
+    const camera = new THREE.PerspectiveCamera(
+      20.0,
+      600 / 400, // 匹配渲染器的宽高比
+      0.1,
+      10.0
+    );
+    camera.position.set(0.0, 2.0, 5.0);
+
+    // camera controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.screenSpacePanning = true;
+    controls.target.set(0.0, 1.0, 0.0);
+    controls.update();
+
+    // scene
+    const scene = new THREE.Scene();
+
+    // light
+    const light = new THREE.DirectionalLight(0xffffff, Math.PI);
+    light.position.set(1.0, 1.0, 1.0).normalize();
+    scene.add(light);
+
+    scene.background = null;
+
+    renderer.setClearColor(0x000000, 0); // 第二个参数是透明度，0 = 完全透明
+
+    // gltf and vrm
+    let currentVrm = undefined;
+    const loader = new GLTFLoader();
+    loader.crossOrigin = 'anonymous';
+
+    loader.register((parser) => {
+      return new VRMLoaderPlugin(parser);
+    });
+
+    loader.load(
+      // URL of the VRM you want to load
+      '/models/example.vrm',
+
+      // called when the resource is loaded
+      (gltf) => {
+        const vrm = gltf.userData.vrm;
+
+        // calling these functions greatly improves the performance
+        VRMUtils.removeUnnecessaryVertices(gltf.scene);
+        VRMUtils.combineSkeletons(gltf.scene);
+        VRMUtils.combineMorphs(vrm);
+
+        // Disable frustum culling
+        vrm.scene.traverse((obj) => {
+          obj.frustumCulled = false;
+        });
+
+        currentVrm = vrm;
+        console.log(vrm);
+        scene.add(vrm.scene);
+      },
+
+      // called while loading is progressing
+      (progress) =>
+        console.log(
+          'Loading model...',
+          100.0 * (progress.loaded / progress.total),
+          '%'
+        ),
+
+      // called when loading has errors
+      (error) => console.error(error)
+    );
+
+    // animate
+    const clock = new THREE.Clock();
+    clock.start();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // update vrm components
+
+      const deltaTime = clock.getDelta();
+      if (currentVrm) {
+        // tweak expressions
+        const s = Math.sin(Math.PI * clock.elapsedTime);
+        currentVrm.expressionManager.setValue('aa', 0.5 + 0.5 * s);
+        currentVrm.expressionManager.setValue('blinkLeft', 0.5 - 0.5 * s);
+
+        // update vrm
+        currentVrm.update(deltaTime);
+      }
+
+      // render
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  }, []);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <div
+      ref={(ref) => (sceneRef.current = ref)}
+      style={{
+        backgroundColor: 'transparent',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        opacity: 1,
+      }}
+    ></div>
   );
 }
 
