@@ -2,6 +2,7 @@ from typing import Optional
 
 from violet.llm_api.llama_client import LlamaClient
 from violet.llm_api.llm_client_base import LLMClientBase
+from violet.llm_api.mlx_client import MlxClient
 from violet.schemas.llm_config import LLMConfig
 
 
@@ -38,5 +39,10 @@ class LLMClient:
                 return LlamaClient(
                     llm_config=llm_config,
                     put_inner_thoughts_first=put_inner_thoughts_first)
+            case "mlx-vlm":
+                return MlxClient(
+                    llm_config=llm_config,
+                    put_inner_thoughts_first=put_inner_thoughts_first
+                )
             case _:
                 return None

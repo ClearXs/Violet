@@ -49,6 +49,9 @@ class VioletConfig:
     persona: str = DEFAULT_PERSONA
     human: str = DEFAULT_HUMAN
 
+    # storage model path
+    model_storage_path = VIOLET_DIR + "/models"
+
     # model parameters
     # default_llm_config: LLMConfig = None
 
@@ -193,6 +196,12 @@ class VioletConfig:
         config = cls(config_path=config_path)
 
         config.create_config_dir()  # create dirs
+
+        # create model storage path
+        model_storage_path = config.model_storage_path
+
+        if model_storage_path.exists() is False:
+            model_storage_path.mkdir(parents=True, exist_ok=True)
 
         return config
 

@@ -6,8 +6,8 @@ from tools.audio_sr import AP_BWE
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 from process_ckpt import get_sovits_version_from_path_fast, load_sovits_new
 from peft import LoraConfig, get_peft_model
-from violet.voice.module.models import SynthesizerTrn, SynthesizerTrnV3, Generator
-from violet.voice.module.mel_processing import mel_spectrogram_torch, spectrogram_torch
+from module.models import SynthesizerTrn, SynthesizerTrnV3, Generator
+from module.mel_processing import mel_spectrogram_torch, spectrogram_torch
 from feature_extractor.cnhubert import CNHubert
 from BigVGAN.bigvgan import BigVGAN
 from AR.models.t2s_lightning_module import Text2SemanticLightningModule
@@ -17,7 +17,7 @@ import torch
 import numpy as np
 import librosa
 import ffmpeg
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 import gc
 import math
 import os
@@ -30,9 +30,12 @@ from copy import deepcopy
 import torchaudio
 from tqdm import tqdm
 
+from violet.config import VioletConfig
+
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
+violet_config = VioletConfig.load()
 
 language = os.environ.get("language", "Auto")
 language = sys.argv[-1] if sys.argv[-1] in scan_language_list() else language
@@ -41,6 +44,66 @@ i18n = I18nAuto(language=language)
 
 spec_min = -12
 spec_max = 2
+
+default_tts_configs = {
+    "v1": {
+        "device": "cpu",
+        "is_half": False,
+        "version": "v1",
+        "t2s_weights_path": "s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt",
+        "vits_weights_path": "s2G488k.pth",
+        "cnhuhbert_base_path": "chinese-hubert-base",
+        "bert_base_path": "chinese-roberta-wwm-ext-large",
+    },
+    "v2": {
+        "device": "cpu",
+        "is_half": False,
+        "version": "v2",
+        "t2s_weights_path": "gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt",
+        "vits_weights_path": "gsv-v2final-pretrained/s2G2333k.pth",
+        "cnhuhbert_base_path": "chinese-hubert-base",
+        "bert_base_path": "chinese-roberta-wwm-ext-large",
+    },
+    "v3": {
+        "device": "cpu",
+        "is_half": False,
+        "version": "v3",
+        "t2s_weights_path": "s1v3.ckpt",
+        "vits_weights_path": "s2Gv3.pth",
+        "cnhuhbert_base_path": "chinese-hubert-base",
+        "bert_base_path": "chinese-roberta-wwm-ext-large",
+    },
+    "v4": {
+        "device": "cpu",
+        "is_half": False,
+        "version": "v4",
+        "t2s_weights_path": "s1v3.ckpt",
+        "vits_weights_path": "gsv-v4-pretrained/s2Gv4.pth",
+        "cnhuhbert_base_path": "chinese-hubert-base",
+        "bert_base_path": "chinese-roberta-wwm-ext-large",
+    },
+
+}
+
+
+def get_absolute_path(relevant_path: Optional[str]):
+    """
+    Get violet realistic absolute path from delivery relevant path
+
+    Examples:
+        relevant_path = chinese-hubert-base
+
+    Return /{username}/.violet/models/chinese-hubert-base
+    """
+
+    if relevant_path is None:
+        return None
+
+    model_storage_path = violet_config.model_storage_path
+    if relevant_path.startswith("/") is False:
+        relevant_path = "/" + relevant_path
+
+    return model_storage_path + relevant_path
 
 
 def norm_spec(x):
@@ -150,47 +213,45 @@ class NO_PROMPT_ERROR(Exception):
 # configs/tts_infer.yaml
 """
 custom:
-  bert_base_path: voice/pretrained_models/chinese-roberta-wwm-ext-large
-  cnhuhbert_base_path: voice/pretrained_models/chinese-hubert-base
+  bert_base_path: chinese-roberta-wwm-ext-large
+  cnhuhbert_base_path: chinese-hubert-base
   device: cpu
   is_half: false
-  t2s_weights_path: voice/pretrained_models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt
-  vits_weights_path: voice/pretrained_models/ \
-      gsv-v2final-pretrained/s2G2333k.pth
+  t2s_weights_path: gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt
+  vits_weights_path: gsv-v2final-pretrained/s2G2333k.pth
   version: v2
 v1:
-  bert_base_path: voice/pretrained_models/chinese-roberta-wwm-ext-large
-  cnhuhbert_base_path: voice/pretrained_models/chinese-hubert-base
+  bert_base_path: chinese-roberta-wwm-ext-large
+  cnhuhbert_base_path: chinese-hubert-base
   device: cpu
   is_half: false
-  t2s_weights_path: voice/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt
-  vits_weights_path: voice/pretrained_models/s2G488k.pth
+  t2s_weights_path: s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt
+  vits_weights_path: s2G488k.pth
   version: v1
 v2:
-  bert_base_path: voice/pretrained_models/chinese-roberta-wwm-ext-large
-  cnhuhbert_base_path: voice/pretrained_models/chinese-hubert-base
+  bert_base_path: chinese-roberta-wwm-ext-large
+  cnhuhbert_base_path: chinese-hubert-base
   device: cpu
   is_half: false
-  t2s_weights_path: voice/pretrained_models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt
-  vits_weights_path: voice/pretrained_models/ \
-      gsv-v2final-pretrained/s2G2333k.pth
+  t2s_weights_path: gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt
+  vits_weights_path: gsv-v2final-pretrained/s2G2333k.pth
   version: v2
 v3:
-  bert_base_path: voice/pretrained_models/chinese-roberta-wwm-ext-large
-  cnhuhbert_base_path: voice/pretrained_models/chinese-hubert-base
+  bert_base_path: chinese-roberta-wwm-ext-large
+  cnhuhbert_base_path: chinese-hubert-base
   device: cpu
   is_half: false
-  t2s_weights_path: voice/pretrained_models/s1v3.ckpt
-  vits_weights_path: voice/pretrained_models/s2Gv3.pth
+  t2s_weights_path: s1v3.ckpt
+  vits_weights_path: s2Gv3.pth
   version: v3
 v4:
-  bert_base_path: voice/pretrained_models/chinese-roberta-wwm-ext-large
-  cnhuhbert_base_path: voice/pretrained_models/chinese-hubert-base
+  bert_base_path: chinese-roberta-wwm-ext-large
+  cnhuhbert_base_path: chinese-hubert-base
   device: cpu
   is_half: false
-  t2s_weights_path: voice/pretrained_models/s1v3.ckpt
+  t2s_weights_path: s1v3.ckpt
   version: v4
-  vits_weights_path: voice/pretrained_models/gsv-v4-pretrained/s2Gv4.pth
+  vits_weights_path: gsv-v4-pretrained/s2Gv4.pth
 """
 
 
@@ -218,45 +279,6 @@ def set_seed(seed: int):
 
 
 class TTS_Config:
-    default_configs = {
-        "v1": {
-            "device": "cpu",
-            "is_half": False,
-            "version": "v1",
-            "t2s_weights_path": "Mind/voice/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt",
-            "vits_weights_path": "Mind/voice/pretrained_models/s2G488k.pth",
-            "cnhuhbert_base_path": "Mind/voice/pretrained_models/chinese-hubert-base",
-            "bert_base_path": "Mind/voice/pretrained_models/chinese-roberta-wwm-ext-large",
-        },
-        "v2": {
-            "device": "cpu",
-            "is_half": False,
-            "version": "v2",
-            "t2s_weights_path": "Mind/voice/pretrained_models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt",
-            "vits_weights_path": "Mind/voice/pretrained_models/gsv-v2final-pretrained/s2G2333k.pth",
-            "cnhuhbert_base_path": "Mind/voice/pretrained_models/chinese-hubert-base",
-            "bert_base_path": "Mind/voice/pretrained_models/chinese-roberta-wwm-ext-large",
-        },
-        "v3": {
-            "device": "cpu",
-            "is_half": False,
-            "version": "v3",
-            "t2s_weights_path": "Mind/voice/pretrained_models/s1v3.ckpt",
-            "vits_weights_path": "Mind/voice/pretrained_models/s2Gv3.pth",
-            "cnhuhbert_base_path": "Mind/voice/pretrained_models/chinese-hubert-base",
-            "bert_base_path": "Mind/voice/pretrained_models/chinese-roberta-wwm-ext-large",
-        },
-        "v4": {
-            "device": "cpu",
-            "is_half": False,
-            "version": "v4",
-            "t2s_weights_path": "Mind/voice/pretrained_models/s1v3.ckpt",
-            "vits_weights_path": "Mind/voice/pretrained_models/gsv-v4-pretrained/s2Gv4.pth",
-            "cnhuhbert_base_path": "Mind/voice/pretrained_models/chinese-hubert-base",
-            "bert_base_path": "Mind/voice/pretrained_models/chinese-roberta-wwm-ext-large",
-        },
-
-    }
     configs: dict = None
     v1_languages: list = ["auto", "en", "zh", "ja", "all_zh", "all_ja"]
     v2_languages: list = ["auto", "auto_yue", "en", "zh", "ja",
@@ -276,7 +298,7 @@ class TTS_Config:
 
     def __init__(self, configs: Union[dict, str] = None):
         # 设置默认配置文件路径
-        configs_base_path: str = "voice/configs/"
+        configs_base_path: str = "violet/voice/configs/"
         os.makedirs(configs_base_path, exist_ok=True)
         self.configs_path: str = os.path.join(
             configs_base_path, "tts_infer.yaml")
@@ -285,7 +307,7 @@ class TTS_Config:
             if not os.path.exists(self.configs_path):
                 self.save_configs()
                 print(f"Create default config file at {self.configs_path}")
-            configs: dict = deepcopy(self.default_configs)
+            configs: dict = deepcopy(default_tts_configs)
 
         if isinstance(configs, str):
             self.configs_path = configs
@@ -294,10 +316,10 @@ class TTS_Config:
         assert isinstance(configs, dict)
         version = configs.get("version", "v2").lower()
         assert version in ["v1", "v2", "v3", "v4"]
-        self.default_configs[version] = configs.get(
-            version, self.default_configs[version])
+        default_tts_configs[version] = configs.get(
+            version, default_tts_configs[version])
         self.configs: dict = configs.get(
-            "custom", deepcopy(self.default_configs[version]))
+            "custom", deepcopy(default_tts_configs[version]))
 
         self.device = self.configs.get("device", torch.device("cpu"))
         if "cuda" in str(self.device) and not torch.cuda.is_available():
@@ -310,29 +332,39 @@ class TTS_Config:
         #     self.is_half = False
 
         self.version = version
-        self.t2s_weights_path = self.configs.get("t2s_weights_path", None)
-        self.vits_weights_path = self.configs.get("vits_weights_path", None)
-        self.bert_base_path = self.configs.get("bert_base_path", None)
-        self.cnhuhbert_base_path = self.configs.get(
-            "cnhuhbert_base_path", None)
+
+        # set model path
+        self.t2s_weights_path = get_absolute_path(
+            self.configs.get("t2s_weights_path", None))
+        self.vits_weights_path = get_absolute_path(
+            self.configs.get("vits_weights_path", None))
+        self.bert_base_path = get_absolute_path(
+            self.configs.get("bert_base_path", None))
+        self.cnhuhbert_base_path = get_absolute_path(
+            self.configs.get("cnhuhbert_base_path", None))
+
         self.languages = self.v1_languages if self.version == "v1" else self.v2_languages
 
         self.use_vocoder: bool = False
 
         if (self.t2s_weights_path in [None, ""]) or (not os.path.exists(self.t2s_weights_path)):
-            self.t2s_weights_path = self.default_configs[version]["t2s_weights_path"]
+            self.t2s_weights_path = get_absolute_path(
+                default_tts_configs[version]["t2s_weights_path"])
             print(
                 f"fall back to default t2s_weights_path: {self.t2s_weights_path}")
         if (self.vits_weights_path in [None, ""]) or (not os.path.exists(self.vits_weights_path)):
-            self.vits_weights_path = self.default_configs[version]["vits_weights_path"]
+            self.vits_weights_path = get_absolute_path(
+                default_tts_configs[version]["vits_weights_path"])
             print(
                 f"fall back to default vits_weights_path: {self.vits_weights_path}")
         if (self.bert_base_path in [None, ""]) or (not os.path.exists(self.bert_base_path)):
-            self.bert_base_path = self.default_configs[version]["bert_base_path"]
+            self.bert_base_path = get_absolute_path(
+                default_tts_configs[version]["bert_base_path"])
             print(
                 f"fall back to default bert_base_path: {self.bert_base_path}")
         if (self.cnhuhbert_base_path in [None, ""]) or (not os.path.exists(self.cnhuhbert_base_path)):
-            self.cnhuhbert_base_path = self.default_configs[version]["cnhuhbert_base_path"]
+            self.cnhuhbert_base_path = get_absolute_path(
+                default_tts_configs[version]["cnhuhbert_base_path"])
             print(
                 f"fall back to default cnhuhbert_base_path: {self.cnhuhbert_base_path}")
         self.update_configs()
@@ -474,10 +506,11 @@ class TTS:
             self.bert_model = self.bert_model.half()
 
     def init_vits_weights(self, weights_path: str):
+
         self.configs.vits_weights_path = weights_path
         version, model_version, if_lora_v3 = get_sovits_version_from_path_fast(
             weights_path)
-        path_sovits = self.configs.default_configs[model_version]["vits_weights_path"]
+        path_sovits = default_tts_configs[model_version]["vits_weights_path"]
 
         if if_lora_v3 == True and os.path.exists(path_sovits) == False:
             info = path_sovits + \
@@ -588,7 +621,7 @@ class TTS:
                 self.empty_cache()
 
             self.vocoder = BigVGAN.from_pretrained(
-                "%s/voice/pretrained_models/models--nvidia--bigvgan_v2_24khz_100band_256x" % (
+                "%s/models--nvidia--bigvgan_v2_24khz_100band_256x" % (
                     now_dir,),
                 use_cuda_kernel=False,
             )  # if True, RuntimeError: Ninja is required to load C++ extensions
@@ -621,7 +654,7 @@ class TTS:
             )
             self.vocoder.remove_weight_norm()
             state_dict_g = torch.load(
-                "%s/Mind/voice/pretrained_models/gsv-v4-pretrained/vocoder.pth" % (now_dir,), map_location="cpu")
+                "%s/gsv-v4-pretrained/vocoder.pth" % (now_dir,), map_location="cpu")
             print("loading vocoder", self.vocoder.load_state_dict(state_dict_g))
 
             self.vocoder_configs["sr"] = 48000
@@ -772,13 +805,9 @@ class TTS:
                 zero_wav_torch = zero_wav_torch.half()
 
             wav16k = torch.cat([wav16k, zero_wav_torch])
-            try:
-                hubert_feature = self.cnhuhbert_model.model(wav16k.unsqueeze(0))["last_hidden_state"].transpose(
-                    1, 2
-                )  # .float()
-            except Exception as e:
-                print(f"Error occurred while extracting features: {e}")
-
+            hubert_feature = self.cnhuhbert_model.model(wav16k.unsqueeze(0))["last_hidden_state"].transpose(
+                1, 2
+            )  # .float()
             codes = self.vits_model.extract_latent(hubert_feature)
 
             prompt_semantic = codes[0, 0].to(self.configs.device)
@@ -1253,8 +1282,7 @@ class TTS:
                         ).detach()[0, 0, :]
                         audio_frag_end_idx.insert(0, 0)
                         batch_audio_fragment = [
-                            _batch_audio_fragment[audio_frag_end_idx[i - 1]
-                                : audio_frag_end_idx[i]]
+                            _batch_audio_fragment[audio_frag_end_idx[i - 1]: audio_frag_end_idx[i]]
                             for i in range(1, len(audio_frag_end_idx))
                         ]
                     else:

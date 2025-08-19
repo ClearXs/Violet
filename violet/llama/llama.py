@@ -10,13 +10,6 @@ from violet.utils import log_telemetry
 
 logger = get_logger(__name__)
 
-config = VioletConfig.load()
-
-model_storage_path = Path(config.recall_storage_path) / 'models'
-
-if model_storage_path.exists() is False:
-    model_storage_path.mkdir(parents=True, exist_ok=True)
-
 local_foundation_model = None
 local_embeddings_model = None
 

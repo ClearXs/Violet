@@ -12,6 +12,7 @@ from pydantic import BaseModel
 import asyncio
 import queue
 from violet.agent.agent_wrapper import AgentWrapper
+from violet.voice.api import router as VoiceRouter
 
 """
 VOICE RECORDING STRATEGY & ARCHITECTURE:
@@ -52,6 +53,8 @@ The warning doesn't affect functionality as pydub falls back gracefully.
 """
 
 app = FastAPI(title="Violet Agent API", version="0.1.2")
+
+app.include_router(VoiceRouter)
 
 # Add CORS middleware
 app.add_middleware(

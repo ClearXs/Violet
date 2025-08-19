@@ -69,6 +69,9 @@ function App() {
           obj.frustumCulled = false;
         });
 
+        const faceToFront = THREE.MathUtils.degToRad(180)
+        vrm.scene.rotation.y = faceToFront
+
         currentVrm = vrm;
         console.log(vrm);
         scene.add(vrm.scene);

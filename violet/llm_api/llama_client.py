@@ -1,8 +1,10 @@
 import base64
 import os
+from pathlib import Path
 from typing import List, Optional
 
 from llama_cpp import Llama
+from violet.config import VioletConfig
 from violet.llm_api.llm_client_base import LLMClientBase
 from violet.log import get_logger
 from violet.schemas.llm_config import LLMConfig
@@ -52,16 +54,19 @@ class LlamaClient(LLMClientBase):
                  llm_config,
                  put_inner_thoughts_first=True,
                  use_tool_naming=True):
+
         super().__init__(llm_config, put_inner_thoughts_first, use_tool_naming)
+
+        config = VioletConfig.load()
 
         from violet.llama.llama import local_foundation_model, load_local_model, model_storage_path
 
         if local_foundation_model is None:
             model = llm_config.model
             if model.endswith('.gguf'):
-                model_path = model_storage_path / model
+                model_path = Path(config.model_storage_path) / model
             else:
-                model_path = model_storage_path / f"{model}.gguf"
+                model_path = Path(config.model_storage_path) / f"{model}.gguf"
 
             if model_path.exists() is False:
                 logger.error(f"Model file not found: {model_path}")

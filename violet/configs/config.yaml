@@ -1,6 +1,6 @@
 agent_name: violet
-model_name: MiniCPM4-8B-Q4_K_M.gguf
-model_endpoint_type: llama
+model_name: InternVL3-2B-4bit
+model_endpoint_type: mlx-vlm
 # model_name: deepseek-chat
 # model_endpoint: https://api.deepseek.com/v1
 # model_endpoint_type: openai

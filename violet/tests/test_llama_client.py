@@ -8,13 +8,13 @@ from violet.schemas.organization import Organization
 from violet.schemas.violet_message_content import ImageContent, MessageContentType, TextContent
 from violet.services.organization_manager import OrganizationManager
 
-
 logger = get_logger(__name__)
 
 cwd = os.getcwd()
 
-model_name = "Qwen3-0.6B-Q3_K_L.gguf"
 example_image_path = cwd + '/violet/tests/images/image.png'
+
+model_name = "Qwen3-0.6B-Q3_K_L.gguf"
 
 
 @pytest.fixture()

@@ -8,10 +8,10 @@ from violet.voice.module.mrte_model import MRTE
 from violet.voice.module.commons import init_weights, get_padding
 from torch.nn.utils import weight_norm, remove_weight_norm, spectral_norm
 from torch.nn import Conv1d, ConvTranspose1d, Conv2d
-from f5_tts import DiT
-from violet.voice.module import attentions
-from violet.voice.module import modules
-from violet.voice.module import commons
+from f5_tts.model import DiT
+from module import attentions
+from module import modules
+from module import commons
 from torch.nn import functional as F
 from torch import nn
 import torch

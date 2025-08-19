@@ -14,7 +14,7 @@ from torch import nn
 
 from x_transformers.x_transformers import RotaryEmbedding
 
-from violet.voice.f5_tts.modules import (
+from violet.voice.f5_tts.model.modules import (
     TimestepEmbedding,
     ConvPositionEmbedding,
     MMDiTBlock,

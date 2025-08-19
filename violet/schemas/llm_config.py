@@ -52,6 +52,7 @@ class LLMConfig(BaseModel):
         "deepseek",
         "xai",
         "llama",
+        "mlx-vlm"
     ]] = Field(None, description="The endpoint type for the model.")
     model_endpoint: Optional[str] = Field(
         None, description="The endpoint for the model.")

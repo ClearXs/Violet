@@ -17,7 +17,7 @@ import torch.nn.functional as F
 from x_transformers import RMSNorm
 from x_transformers.x_transformers import RotaryEmbedding
 
-from violet.voice.f5_tts.modules import (
+from violet.voice.f5_tts.model.modules import (
     TimestepEmbedding,
     ConvNeXtV2Block,
     ConvPositionEmbedding,

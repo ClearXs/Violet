@@ -1,13 +1,6 @@
 """
 # WebAPI文档
 
-` python api_v2.py -a 127.0.0.1 -p 9880 -c voice/configs/tts_infer.yaml `
-
-## 执行参数:
-    `-a` - `绑定地址, 默认"127.0.0.1"`
-    `-p` - `绑定端口, 默认9880`
-    `-c` - `TTS配置文件路径, 默认"voice/configs/tts_infer.yaml"`
-
 ## 调用:
 
 ### 推理
@@ -103,9 +96,8 @@ from violet.voice.TTS_infer_pack.text_segmentation_method import get_method_name
 from violet.voice.TTS_infer_pack.TTS import TTS, TTS_Config
 from tools.i18n.i18n import I18nAuto
 from io import BytesIO
-import uvicorn
 from fastapi.responses import StreamingResponse, JSONResponse
-from fastapi import FastAPI, Response
+from fastapi import APIRouter,  File, Response, UploadFile
 import soundfile as sf
 import numpy as np
 import signal
@@ -114,7 +106,6 @@ import subprocess
 import argparse
 import os
 import sys
-import traceback
 from typing import Generator
 
 now_dir = os.getcwd()
@@ -128,7 +119,7 @@ cut_method_names = get_cut_method_names()
 
 parser = argparse.ArgumentParser(description="GPT-SoVITS api")
 parser.add_argument("-c", "--tts_config", type=str,
-                    default="Mind/voice/configs/tts_infer.yaml", help="tts_infer路径")
+                    default="violet/voice/configs/tts_infer.yaml", help="tts_infer路径")
 parser.add_argument("-a", "--bind_addr", type=str,
                     default="127.0.0.1", help="default: 127.0.0.1")
 parser.add_argument("-p", "--port", type=int,
@@ -141,12 +132,13 @@ host = args.bind_addr
 argv = sys.argv
 
 if config_path in [None, ""]:
-    config_path = "Mind/GPT-SoVITS/configs/tts_infer.yaml"
+    config_path = "violet/voice/configs/tts_infer.yaml"
 
 tts_config = TTS_Config(config_path)
 tts_pipeline = TTS(tts_config)
 
-APP = FastAPI()
+
+router = APIRouter(prefix='/voice', tags=['voice'])
 
 
 class TTS_Request(BaseModel):
@@ -378,14 +370,14 @@ async def tts_handle(req: dict):
         return JSONResponse(status_code=400, content={"message": "tts failed", "Exception": str(e)})
 
 
-@APP.get("/control")
+@router.get("/control")
 async def control(command: str = None):
     if command is None:
         return JSONResponse(status_code=400, content={"message": "command is required"})
     handle_control(command)
 
 
-@APP.get("/tts")
+@router.get("/tts")
 async def tts_get_endpoint(
     text: str = None,
     text_lang: str = None,
@@ -437,13 +429,13 @@ async def tts_get_endpoint(
     return await tts_handle(req)
 
 
-@APP.post("/tts")
+@router.post("/tts")
 async def tts_post_endpoint(request: TTS_Request):
     req = request.dict()
     return await tts_handle(req)
 
 
-@APP.get("/set_refer_audio")
+@router.get("/set_refer_audio")
 async def set_refer_aduio(refer_audio_path: str = None):
     try:
         tts_pipeline.set_ref_audio(refer_audio_path)
@@ -452,26 +444,26 @@ async def set_refer_aduio(refer_audio_path: str = None):
     return JSONResponse(status_code=200, content={"message": "success"})
 
 
-# @APP.post("/set_refer_audio")
-# async def set_refer_aduio_post(audio_file: UploadFile = File(...)):
-#     try:
-#         # 检查文件类型，确保是音频文件
-#         if not audio_file.content_type.startswith("audio/"):
-#             return JSONResponse(status_code=400, content={"message": "file type is not supported"})
+@router.post("/set_refer_audio")
+async def set_refer_aduio_post(audio_file: UploadFile = File(...)):
+    try:
+        # 检查文件类型，确保是音频文件
+        if not audio_file.content_type.startswith("audio/"):
+            return JSONResponse(status_code=400, content={"message": "file type is not supported"})
 
-#         os.makedirs("uploaded_audio", exist_ok=True)
-#         save_path = os.path.join("uploaded_audio", audio_file.filename)
-#         # 保存音频文件到服务器上的一个目录
-#         with open(save_path , "wb") as buffer:
-#             buffer.write(await audio_file.read())
+        os.makedirs("uploaded_audio", exist_ok=True)
+        save_path = os.path.join("uploaded_audio", audio_file.filename)
+        # 保存音频文件到服务器上的一个目录
+        with open(save_path, "wb") as buffer:
+            buffer.write(await audio_file.read())
 
-#         tts_pipeline.set_ref_audio(save_path)
-#     except Exception as e:
-#         return JSONResponse(status_code=400, content={"message": f"set refer audio failed", "Exception": str(e)})
-#     return JSONResponse(status_code=200, content={"message": "success"})
+        tts_pipeline.set_ref_audio(save_path)
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"message": f"set refer audio failed", "Exception": str(e)})
+    return JSONResponse(status_code=200, content={"message": "success"})
 
 
-@APP.get("/set_gpt_weights")
+@router.get("/set_gpt_weights")
 async def set_gpt_weights(weights_path: str = None):
     try:
         if weights_path in ["", None]:
@@ -483,7 +475,7 @@ async def set_gpt_weights(weights_path: str = None):
     return JSONResponse(status_code=200, content={"message": "success"})
 
 
-@APP.get("/set_sovits_weights")
+@router.get("/set_sovits_weights")
 async def set_sovits_weights(weights_path: str = None):
     try:
         if weights_path in ["", None]:
@@ -494,12 +486,8 @@ async def set_sovits_weights(weights_path: str = None):
     return JSONResponse(status_code=200, content={"message": "success"})
 
 
-if __name__ == "__main__":
-    try:
-        if host == "None":  # 在调用时使用 -a None 参数，可以让api监听双栈
-            host = None
-        uvicorn.run(app=APP, host=host, port=port, workers=1)
-    except Exception:
-        traceback.print_exc()
-        os.kill(os.getpid(), signal.SIGTERM)
-        exit(0)
+@router.get('/asr')
+async def asr_endpoint(audio_file: UploadFile = File(...)):
+    # TODO use whisper as asr
+
+    pass
