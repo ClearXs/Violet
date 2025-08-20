@@ -23,7 +23,7 @@ class Whisper:
             self.model = local_whisper_model
         else:
             # load local model
-            config = VioletConfig.load()
+            config = VioletConfig.get_config()
             model_storage_path = config.model_storage_path
 
             whisper_model_path = pathlib.Path(model_storage_path) / 'whisper'

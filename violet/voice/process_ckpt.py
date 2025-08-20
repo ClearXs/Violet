@@ -6,7 +6,7 @@ from time import time as ttime
 import shutil
 import os
 import torch
-from violet.voice.tools.i18n.i18n import I18nAuto
+from violet.i18n.i18n import I18nAuto
 
 i18n = I18nAuto()
 

@@ -92,9 +92,12 @@ RESP:
 """
 
 from pydantic import BaseModel
+from violet.config import VioletConfig
+from violet.log import get_logger
+from violet.utils import log_telemetry
 from violet.voice.TTS_infer_pack.text_segmentation_method import get_method_names as get_cut_method_names
 from violet.voice.TTS_infer_pack.TTS import TTS, TTS_Config
-from tools.i18n.i18n import I18nAuto
+from violet.i18n.i18n import I18nAuto
 from io import BytesIO
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi import APIRouter,  File, Response, UploadFile
@@ -107,6 +110,10 @@ import argparse
 import os
 import sys
 from typing import Generator
+
+from violet.voice.whisper.whisper import Whisper
+
+logger = get_logger(__name__)
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -131,14 +138,31 @@ port = args.port
 host = args.bind_addr
 argv = sys.argv
 
-if config_path in [None, ""]:
-    config_path = "violet/voice/configs/tts_infer.yaml"
-
-tts_config = TTS_Config(config_path)
-tts_pipeline = TTS(tts_config)
-
+tts_config: TTS_Config = None
+tts_pipeline: TTS = None
+whisper_handler: Whisper = None
 
 router = APIRouter(prefix='/voice', tags=['voice'])
+
+
+async def setup():
+    global tts_config
+    global tts_pipeline
+    global whisper_handler
+
+    from violet.constants import VIOLET_DIR
+
+    config_path = VIOLET_DIR + "/tts_infer.yaml"
+
+    tts_config = TTS_Config(config_path)
+    tts_pipeline = TTS(tts_config)
+
+    whisper_handler = Whisper()
+
+    log_telemetry(
+        logger=logger,
+        event="initialize",
+        **{"module": "voice", "status": "successful"})
 
 
 class TTS_Request(BaseModel):
@@ -252,6 +276,8 @@ def handle_control(command: str):
 
 
 def check_params(req: dict):
+    global tts_config
+
     text: str = req.get("text", "")
     text_lang: str = req.get("text_lang", "")
     ref_audio_path: str = req.get("ref_audio_path", "")
@@ -486,8 +512,19 @@ async def set_sovits_weights(weights_path: str = None):
     return JSONResponse(status_code=200, content={"message": "success"})
 
 
-@router.get('/asr')
+@router.post('/asr')
 async def asr_endpoint(audio_file: UploadFile = File(...)):
-    # TODO use whisper as asr
+    config = VioletConfig.get_config()
+    file_storage_path = config.file_storage_path
 
-    pass
+    filename = audio_file.filename
+    data = await audio_file.read()
+    file_path = os.path.join(file_storage_path, filename)
+    with open(file_path, "wb") as f:
+        f.write(data)
+
+    try:
+        text = whisper_handler.rec(file_path)
+        return JSONResponse(status_code=200, content={"data": text})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"message": "ASR failed", "Exception": str(e)})

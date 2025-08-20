@@ -1,3 +1,4 @@
+import os
 from split_lang import LangSplitter
 import fast_langdetect
 from pathlib import Path
@@ -7,15 +8,17 @@ import re
 # jieba静音
 import jieba
 
+from violet.config import VioletConfig
+
 jieba.setLogLevel(logging.CRITICAL)
 
-# 更改fast_langdetect大模型位置
+config = VioletConfig.get_config()
+
+cache_dir = os.path.join(config.model_storage_path,
+                         "GPT_SoVITS", "fast_langdetect")
 
 fast_langdetect.infer._default_detector = fast_langdetect.infer.LangDetector(
-    fast_langdetect.infer.LangDetectConfig(
-        cache_dir=Path(__file__).parent.parent.parent /
-        "pretrained_models" / "fast_langdetect"
-    )
+    fast_langdetect.infer.LangDetectConfig(cache_dir=cache_dir)
 )
 
 

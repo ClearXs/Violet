@@ -1,3 +1,5 @@
+'use client';
+
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -11,7 +13,10 @@ function App() {
     // renderer
     const renderer = new THREE.WebGLRenderer({ alpha: true });
     // 添加这行设置渲染器尺寸
-    renderer.setSize(600, 400);
+    renderer.setSize(
+      sceneRef.current?.clientWidth,
+      sceneRef.current?.clientHeight
+    );
     renderer.setPixelRatio(window.devicePixelRatio);
     sceneRef.current?.appendChild(renderer.domElement);
 
@@ -59,18 +64,21 @@ function App() {
       (gltf) => {
         const vrm = gltf.userData.vrm;
 
+        // const scene = vrm.scene
+
+        // scene.scale.set(1,1,1)
         // calling these functions greatly improves the performance
         VRMUtils.removeUnnecessaryVertices(gltf.scene);
         VRMUtils.combineSkeletons(gltf.scene);
         VRMUtils.combineMorphs(vrm);
 
         // Disable frustum culling
-        vrm.scene.traverse((obj) => {
+        scene.traverse((obj) => {
           obj.frustumCulled = false;
         });
 
-        const faceToFront = THREE.MathUtils.degToRad(180)
-        vrm.scene.rotation.y = faceToFront
+        const faceToFront = THREE.MathUtils.degToRad(180);
+        scene.rotation.y = faceToFront;
 
         currentVrm = vrm;
         console.log(vrm);
@@ -119,13 +127,7 @@ function App() {
   return (
     <div
       ref={(ref) => (sceneRef.current = ref)}
-      style={{
-        backgroundColor: 'transparent',
-        width: '100%',
-        height: '100%',
-        overflow: 'hidden',
-        opacity: 1,
-      }}
+      className='w-screen h-screen flex justify-center items-center'
     ></div>
   );
 }

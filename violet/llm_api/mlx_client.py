@@ -30,7 +30,7 @@ class MlxClient(LLMClientBase):
     def __init__(self, llm_config, put_inner_thoughts_first=True, use_tool_naming=True):
         super().__init__(llm_config, put_inner_thoughts_first, use_tool_naming)
 
-        config = VioletConfig.load()
+        config = VioletConfig.get_config()
 
         from violet.mlx.mlx import load_local_model, local_foundation_model, local_processor
 

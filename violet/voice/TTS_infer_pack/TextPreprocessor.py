@@ -1,5 +1,5 @@
-from violet.voice.tools.i18n.i18n import I18nAuto, scan_language_list
-from TTS_infer_pack.text_segmentation_method import split_big_text, splits, get_method as get_seg_method
+from violet.i18n.i18n import I18nAuto, scan_language_list
+from violet.voice.TTS_infer_pack.text_segmentation_method import split_big_text, splits, get_method as get_seg_method
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 from violet.voice.text import cleaned_text_to_sequence
 from violet.voice.text.cleaner import clean_text

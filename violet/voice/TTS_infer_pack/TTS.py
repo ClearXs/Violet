@@ -1,16 +1,16 @@
-from TTS_infer_pack.TextPreprocessor import TextPreprocessor
-from TTS_infer_pack.text_segmentation_method import splits
-from tools.my_utils import load_audio
-from tools.i18n.i18n import I18nAuto, scan_language_list
-from tools.audio_sr import AP_BWE
+from violet.voice.TTS_infer_pack.TextPreprocessor import TextPreprocessor
+from violet.voice.TTS_infer_pack.text_segmentation_method import splits
+from violet.voice.tools.my_utils import load_audio
+from violet.i18n.i18n import I18nAuto, scan_language_list
+from violet.voice.tools.audio_sr import AP_BWE
 from transformers import AutoModelForMaskedLM, AutoTokenizer
-from process_ckpt import get_sovits_version_from_path_fast, load_sovits_new
+from violet.voice.process_ckpt import get_sovits_version_from_path_fast, load_sovits_new
 from peft import LoraConfig, get_peft_model
-from module.models import SynthesizerTrn, SynthesizerTrnV3, Generator
-from module.mel_processing import mel_spectrogram_torch, spectrogram_torch
-from feature_extractor.cnhubert import CNHubert
-from BigVGAN.bigvgan import BigVGAN
-from AR.models.t2s_lightning_module import Text2SemanticLightningModule
+from violet.voice.module.models import SynthesizerTrn, SynthesizerTrnV3, Generator
+from violet.voice.module.mel_processing import mel_spectrogram_torch, spectrogram_torch
+from violet.voice.feature_extractor.cnhubert import CNHubert
+from violet.voice.BigVGAN.bigvgan import BigVGAN
+from violet.voice.AR.models.t2s_lightning_module import Text2SemanticLightningModule
 import yaml
 import torch.nn.functional as F
 import torch
@@ -35,7 +35,7 @@ from violet.config import VioletConfig
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
-violet_config = VioletConfig.load()
+violet_config = VioletConfig.get_config()
 
 language = os.environ.get("language", "Auto")
 language = sys.argv[-1] if sys.argv[-1] in scan_language_list() else language
@@ -50,37 +50,37 @@ default_tts_configs = {
         "device": "cpu",
         "is_half": False,
         "version": "v1",
-        "t2s_weights_path": "s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt",
-        "vits_weights_path": "s2G488k.pth",
-        "cnhuhbert_base_path": "chinese-hubert-base",
-        "bert_base_path": "chinese-roberta-wwm-ext-large",
+        "t2s_weights_path": "GPT_SoVITS/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt",
+        "vits_weights_path": "GPT_SoVITS/s2G488k.pth",
+        "cnhuhbert_base_path": "GPT_SoVITS/chinese-hubert-base",
+        "bert_base_path": "GPT_SoVITS/chinese-roberta-wwm-ext-large",
     },
     "v2": {
         "device": "cpu",
         "is_half": False,
         "version": "v2",
-        "t2s_weights_path": "gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt",
-        "vits_weights_path": "gsv-v2final-pretrained/s2G2333k.pth",
-        "cnhuhbert_base_path": "chinese-hubert-base",
-        "bert_base_path": "chinese-roberta-wwm-ext-large",
+        "t2s_weights_path": "GPT_SoVITS/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt",
+        "vits_weights_path": "GPT_SoVITS/gsv-v2final-pretrained/s2G2333k.pth",
+        "cnhuhbert_base_path": "GPT_SoVITS/chinese-hubert-base",
+        "bert_base_path": "GPT_SoVITS/chinese-roberta-wwm-ext-large",
     },
     "v3": {
         "device": "cpu",
         "is_half": False,
         "version": "v3",
-        "t2s_weights_path": "s1v3.ckpt",
-        "vits_weights_path": "s2Gv3.pth",
-        "cnhuhbert_base_path": "chinese-hubert-base",
-        "bert_base_path": "chinese-roberta-wwm-ext-large",
+        "t2s_weights_path": "GPT_SoVITS/s1v3.ckpt",
+        "vits_weights_path": "GPT_SoVITS/s2Gv3.pth",
+        "cnhuhbert_base_path": "GPT_SoVITS/chinese-hubert-base",
+        "bert_base_path": "GPT_SoVITS/chinese-roberta-wwm-ext-large",
     },
     "v4": {
         "device": "cpu",
         "is_half": False,
         "version": "v4",
-        "t2s_weights_path": "s1v3.ckpt",
-        "vits_weights_path": "gsv-v4-pretrained/s2Gv4.pth",
-        "cnhuhbert_base_path": "chinese-hubert-base",
-        "bert_base_path": "chinese-roberta-wwm-ext-large",
+        "t2s_weights_path": "GPT_SoVITS/s1v3.ckpt",
+        "vits_weights_path": "GPT_SoVITS/gsv-v4-pretrained/s2Gv4.pth",
+        "cnhuhbert_base_path": "GPT_SoVITS/chinese-hubert-base",
+        "bert_base_path": "GPT_SoVITS/chinese-roberta-wwm-ext-large",
     },
 
 }
@@ -391,7 +391,7 @@ class TTS_Config:
         return configs
 
     def save_configs(self, configs_path: str = None) -> None:
-        configs = deepcopy(self.default_configs)
+        configs = deepcopy(default_tts_configs)
         if self.configs is not None:
             configs["custom"] = self.update_configs()
 
@@ -597,7 +597,6 @@ class TTS:
     def init_t2s_weights(self, weights_path: str):
         print(f"Loading Text2Semantic weights from {weights_path}")
         self.configs.t2s_weights_path = weights_path
-        self.configs.save_configs()
         self.configs.hz = 50
         dict_s1 = torch.load(weights_path, map_location=self.configs.device)
         config = dict_s1["config"]

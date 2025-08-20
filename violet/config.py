@@ -37,6 +37,9 @@ def set_field(config, section, field, value):
     config.set(section, field, value)
 
 
+config = None
+
+
 @dataclass
 class VioletConfig:
     config_path: str = os.getenv(
@@ -49,8 +52,11 @@ class VioletConfig:
     persona: str = DEFAULT_PERSONA
     human: str = DEFAULT_HUMAN
 
-    # storage model path
+    # model storage path
     model_storage_path = VIOLET_DIR + "/models"
+
+    # file storage path
+    file_storage_path = VIOLET_DIR + "/files"
 
     # model parameters
     # default_llm_config: LLMConfig = None
@@ -123,7 +129,16 @@ class VioletConfig:
 
         # insure all configuration directories exist
         cls.create_config_dir()
-        printd(f"Loading config from {config_path}")
+
+        # create model storage path
+        model_storage_path = cls.model_storage_path
+        if os.path.exists(model_storage_path) is False:
+            os.makedirs(model_storage_path, exist_ok=True)
+
+        file_storage_path = cls.file_storage_path
+        if os.path.exists(file_storage_path) is False:
+            os.makedirs(file_storage_path, exist_ok=True)
+
         if os.path.exists(config_path):
             # read existing config
             config.read(config_path)
@@ -196,12 +211,6 @@ class VioletConfig:
         config = cls(config_path=config_path)
 
         config.create_config_dir()  # create dirs
-
-        # create model storage path
-        model_storage_path = config.model_storage_path
-
-        if model_storage_path.exists() is False:
-            model_storage_path.mkdir(parents=True, exist_ok=True)
 
         return config
 
@@ -314,3 +323,17 @@ class VioletConfig:
         tmp_folder = os.path.join(VIOLET_DIR, "tmp")
         if not os.path.exists(tmp_folder):
             os.makedirs(tmp_folder, exist_ok=True)
+
+    @staticmethod
+    def setup():
+        global config
+        config = VioletConfig.load()
+
+    @staticmethod
+    def get_config():
+        global config
+
+        if config is None:
+            config = VioletConfig.load()
+
+        return config

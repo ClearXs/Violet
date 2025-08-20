@@ -1,8 +1,7 @@
 import os
 import pytest
 
-from violet.voice.TTS_infer_pack import TTS
-from violet.voice.TTS_infer_pack.TTS import TTS_Config
+from violet.voice.TTS_infer_pack.TTS import TTS, TTS_Config
 
 cwd = os.getcwd()
 
@@ -10,6 +9,13 @@ ref_audio_path = cwd + \
     '/violet/tests/audios/【默认】あの時、汝を目にしたんじゃ。当時は確か人の姿はなく、ただ意識を持っていただけじゃったがの。.wav'
 
 config_path = "violet/voice/configs/tts_infer.yaml"
+
+output_path = cwd + \
+    '/violet/tests/output/output.wav'
+
+if os.path.exists(output_path):
+    import pathlib
+    pathlib.Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
 
 @pytest.fixture
@@ -50,14 +56,14 @@ def tts_pipeline():
 async def test_tts(tts_request, tts_pipeline):
     from datetime import datetime
 
-    start_time = datetime.now().timestamp()
-
     generator = tts_pipeline.run(tts_request)
+
+    start_time = datetime.now().timestamp()
+    sampling_rate, audio_data = next(generator)
 
     end_time = datetime.now().timestamp()
 
     print(f"elapse time {end_time - start_time}")
 
-    _, audio_data = next(generator)
-
-    assert audio_data is not None
+    import soundfile as sf
+    sf.write(output_path, audio_data, sampling_rate)

@@ -37,7 +37,7 @@ def clean_text(text, language, version=None):
         if special_s in text and language == special_l:
             return clean_special(text, language, special_s, target_symbol, version)
     language_module = __import__(
-        "text." + language_module_map[language], fromlist=[language_module_map[language]])
+        "violet.voice.text." + language_module_map[language], fromlist=[language_module_map[language]])
     if hasattr(language_module, "text_normalize"):
         norm_text = language_module.text_normalize(text)
     else:

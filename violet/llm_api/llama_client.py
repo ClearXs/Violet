@@ -57,9 +57,9 @@ class LlamaClient(LLMClientBase):
 
         super().__init__(llm_config, put_inner_thoughts_first, use_tool_naming)
 
-        config = VioletConfig.load()
+        config = VioletConfig.get_config()
 
-        from violet.llama.llama import local_foundation_model, load_local_model, model_storage_path
+        from violet.llama.llama import local_foundation_model, load_local_model
 
         if local_foundation_model is None:
             model = llm_config.model

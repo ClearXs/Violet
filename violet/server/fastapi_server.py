@@ -1,6 +1,7 @@
 import os
 import traceback
 import json
+from fastapi.concurrency import asynccontextmanager
 import yaml
 from pathlib import Path
 from datetime import datetime
@@ -12,7 +13,11 @@ from pydantic import BaseModel
 import asyncio
 import queue
 from violet.agent.agent_wrapper import AgentWrapper
+from violet.config import VioletConfig
+from violet.log import get_logger
+from violet.utils import log_telemetry
 from violet.voice.api import router as VoiceRouter
+from violet.voice.api import setup as voice_setup
 
 """
 VOICE RECORDING STRATEGY & ARCHITECTURE:
@@ -46,13 +51,52 @@ FFPROBE WARNING:
 The warning about ffprobe/avprobe is harmless and expected if FFmpeg isn't in your system PATH.
 To fix it, install FFmpeg:
 - Windows: Download from https://ffmpeg.org and add to PATH
-- macOS: brew install ffmpeg  
+- macOS: brew install ffmpeg
 - Linux: sudo apt install ffmpeg
 
 The warning doesn't affect functionality as pydub falls back gracefully.
 """
 
-app = FastAPI(title="Violet Agent API", version="0.1.2")
+
+logger = get_logger(__name__)
+
+# Global agent instance
+agent = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    VioletConfig.setup()
+
+    await setup()
+    await voice_setup()
+
+    yield
+
+    await graceful_shutdown()
+
+
+async def setup():
+    global agent
+
+    from violet.constants import VIOLET_DIR
+    agent = AgentWrapper(VIOLET_DIR + '/config.yaml')
+
+    log_telemetry(
+        logger=logger,
+        event="initialize",
+        **{"module": "agent", "status": "successful"})
+
+
+async def graceful_shutdown():
+    global agent
+
+
+app = FastAPI(title="Violet API",
+              version="0.1.0",
+              swagger_ui_parameters={"syntaxHighlight": False},
+              lifespan=lifespan)
 
 app.include_router(VoiceRouter)
 
@@ -64,9 +108,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Global agent instance
-agent = None
 
 
 class MessageRequest(BaseModel):
@@ -298,14 +339,6 @@ class ReflexionResponse(BaseModel):
     success: bool
     message: str
     processing_time: Optional[float] = None
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize the agent when the server starts"""
-    global agent
-    agent = AgentWrapper('configs/violet_monitor.yaml')
-    print("Agent initialized successfully")
 
 
 @app.get("/health")

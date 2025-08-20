@@ -134,7 +134,7 @@ class Server(object):
 
 
 # NOTE: hack to see if single session management works
-config = VioletConfig.load()
+config = VioletConfig.get_config()
 
 
 def print_sqlite_schema_error():
@@ -370,7 +370,7 @@ class SyncServer(Server):
         self.default_interface_factory = default_interface_factory
 
         # Initialize the metadata store
-        config = VioletConfig.load()
+        config = VioletConfig.get_config()
         if settings.violet_pg_uri_no_default:
             config.recall_storage_type = "postgres"
             config.recall_storage_uri = settings.violet_pg_uri_no_default

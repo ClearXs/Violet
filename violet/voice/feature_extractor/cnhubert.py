@@ -1,5 +1,5 @@
 import torch.nn as nn
-import utils
+import violet.voice.utils
 from transformers import (
     Wav2Vec2FeatureExtractor,
     HubertModel,

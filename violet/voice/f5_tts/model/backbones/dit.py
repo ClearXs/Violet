@@ -25,7 +25,7 @@ from violet.voice.f5_tts.model.modules import (
     get_pos_embed_indices,
 )
 
-from module.commons import sequence_mask
+from violet.voice.module.commons import sequence_mask
 
 
 class TextEmbedding(nn.Module):
