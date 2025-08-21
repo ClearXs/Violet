@@ -14,14 +14,42 @@ cwd = os.getcwd()
 
 example_image_path = cwd + '/violet/tests/images/image.png'
 
-model_name = "Qwen3-0.6B-Q3_K_L.gguf"
+# model_name = "gemma-3-270m-it-Q8_0.gguf"
+# mmproj_name = None
+
+# qwen
+# model_name = "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf"
+# mmproj_name = "mmproj-qwen2.5-vl-model-f16.gguf"
+
+# minicpm4-vl
+# model_name = "minicpm4-vl-Q8_0.gguf"
+# mmproj_name = "mmproj-minicpm4-vl-model-f16.gguf"
+
+# InternVL3
+# model_name = "InternVL3-2B-UD-Q4_K_XL.gguf"
+# mmproj_name = "mmproj-InternVL3-BF16.gguf"
+
+# LFM2-VL
+# model_name = "LFM2-VL-1.6B-Q8_0.gguf"
+# mmproj_name = "mmproj-LFM2-VL-1.6B-Q8_0.gguf"
+
+# gemma3
+# model_name = "gemma-3-4b-it-UD-Q4_K_XL.gguf"
+# mmproj_name = "mmproj-gemma3-F16.gguf"
+
+
+# minicpm4
+model_name = "MiniCPM4-0.5B.Q8_0.gguf"
+mmproj_name = None
 
 
 @pytest.fixture()
 def llama_config():
     return LLMConfig(
         model=model_name,
-        context_window=4096
+        mmproj_model=mmproj_name,
+        model_endpoint_type="llama",
+        context_window=32768
     )
 
 
@@ -29,17 +57,32 @@ def llama_config():
 async def test_request(llama_config):
     client = LlamaClient(llm_config=llama_config)
 
-    message: Message = Message(role="user", content=[
-                               TextContent(type='text', text="who are you?/no_think")])
-    messages = [message]
-    res = client.send_llm_request(messages=messages)
-    res = client.send_llm_request(messages=messages)
+    message1: Message = Message(role="user", content=[
+        TextContent(type='text', text="who are you?")])
 
-    assert res is not None
+    from datetime import datetime
+
+    start_time = datetime.now().timestamp()
+    res = client.send_llm_request(messages=[message1])
+
+    end_time = datetime.now().timestamp()
+    print(f"duration: {end_time - start_time}")
+    print(f"result: {res}")
+
+    message2: Message = Message(role="user", content=[
+        TextContent(type='text', text="can you tell me your name?")])
+
+    start_time = datetime.now().timestamp()
+    res = client.send_llm_request(messages=[message1, message2])
+    end_time = datetime.now().timestamp()
+    print(f"duration: {end_time - start_time}")
+    print(f"result: {res}")
 
 
 @pytest.mark.asyncio()
 async def test_image_request(llama_config):
+
+    from datetime import datetime
 
     org_manager = OrganizationManager()
     default_org = None
@@ -62,7 +105,21 @@ async def test_image_request(llama_config):
         TextContent(type='text', text="Describe give you picture."),
         ImageContent(type=MessageContentType.image_url, image_id=file_metadata.id, detail="auto")])
 
-    messages = [message]
-    res = client.send_llm_request(messages=messages)
+    start_time = datetime.now().timestamp()
 
-    assert res is not None
+    res = client.send_llm_request(messages=[message])
+
+    end_time = datetime.now().timestamp()
+    duration = end_time - start_time
+    print(f'elapse time: {duration}')
+    print(f'result {res}')
+
+    message2: Message = Message(role="user", content=[
+        TextContent(type='text', text="what's topic of Math")])
+    start_time = datetime.now().timestamp()
+    res = client.send_llm_request(messages=[message2])
+
+    end_time = datetime.now().timestamp()
+    duration = end_time - start_time
+    print(f'elapse time: {duration}')
+    print(f'result {res}')

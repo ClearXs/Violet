@@ -80,8 +80,8 @@ async def lifespan(app: FastAPI):
 async def setup():
     global agent
 
-    from violet.constants import VIOLET_DIR
-    agent = AgentWrapper(VIOLET_DIR + '/config.yaml')
+    llm_config = VioletConfig.get_llm_config()
+    agent = AgentWrapper(llm_config)
 
     log_telemetry(
         logger=logger,

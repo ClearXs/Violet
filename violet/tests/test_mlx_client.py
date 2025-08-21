@@ -8,18 +8,19 @@ from violet.schemas.violet_message_content import ImageContent, MessageContentTy
 from violet.services.organization_manager import OrganizationManager
 from violet.tests import setup
 
-model_name = "InternVL3-2B-4bit"
+model_name = "gemma-3n-E2B-4bit"
 
 cwd = os.getcwd()
 
 example_image_path = cwd + '/violet/tests/images/image.png'
+example_image_path2 = cwd + '/violet/tests/images/image2.png'
 
 
 @pytest.fixture
 def llm_config():
     return LLMConfig(
         model=model_name,
-        context_window=4096
+        context_window=32768
     )
 
 
@@ -85,6 +86,23 @@ async def test_request(llm_config):
     start_time = datetime.now().timestamp()
 
     res = client.send_llm_request(messages=[message, message2])
+
+    end_time = datetime.now().timestamp()
+    duration = end_time - start_time
+    print(f'elapse time: {duration}')
+    print(f'result {res}')
+
+    file_metadata2 = client.file_manager.create_file_metadata_from_path(
+        organization_id=OrganizationManager.DEFAULT_ORG_ID, file_path=example_image_path2)
+
+    message3: Message = Message(role="user", content=[
+        TextContent(type='text', text="Describe the picture"),
+        ImageContent(type=MessageContentType.image_url,
+                     image_id=file_metadata2.id, detail="auto"),])
+
+    start_time = datetime.now().timestamp()
+
+    res = client.send_llm_request(messages=[message, message2, message3])
 
     end_time = datetime.now().timestamp()
     duration = end_time - start_time

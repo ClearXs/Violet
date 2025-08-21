@@ -1,6 +1,5 @@
 import base64
 import os
-from pathlib import Path
 from typing import List, Optional
 
 from llama_cpp import Llama
@@ -63,22 +62,36 @@ class LlamaClient(LLMClientBase):
 
         if local_foundation_model is None:
             model = llm_config.model
-            if model.endswith('.gguf'):
-                model_path = Path(config.model_storage_path) / model
-            else:
-                model_path = Path(config.model_storage_path) / f"{model}.gguf"
 
-            if model_path.exists() is False:
+            # modulate model and build model path
+            if model.endswith('.gguf'):
+                model_path = os.path.join(config.model_storage_path, model)
+            else:
+                model_path = os.path.join(
+                    config.model_storage_path, f"{model}.gguf")
+
+            if not os.path.exists(model_path):
                 logger.error(f"Model file not found: {model_path}")
                 raise FileNotFoundError(f"Model file not found: {model_path}")
 
+            # modulate vision model and build vision model extra path.
+            mmproj_model_path = None
+            mmproj_model = llm_config.mmproj_model
+
+            if mmproj_model is not None:
+                if mmproj_model.endswith('.gguf'):
+                    mmproj_model_path = os.path.join(
+                        config.model_storage_path, mmproj_model)
+                else:
+                    mmproj_model_path = os.path.join(
+                        config.model_storage_path, f"{mmproj_model}.gguf")
+
             model_config = llm_config.model_config
-            mmproj_model_path = llm_config.mmproj_model_path
             context_window = llm_config.context_window
 
             self.local_llama = load_local_model(
                 model,
-                str(model_path),
+                model_path,
                 mmproj_model_path,
                 context_window,
                 **model_config)
@@ -98,11 +111,7 @@ class LlamaClient(LLMClientBase):
         Constructs a request object in the expected data format for the OpenAI API.
         """
         if tools and llm_config.put_inner_thoughts_in_kwargs:
-            # Special case for LM Studio backend since it needs extra guidance to force out the thoughts first
-            # TODO(fix)
-            inner_thoughts_desc = (
-                INNER_THOUGHTS_KWARG_DESCRIPTION_GO_FIRST if ":1234" in llm_config.model_endpoint else INNER_THOUGHTS_KWARG_DESCRIPTION
-            )
+            inner_thoughts_desc = INNER_THOUGHTS_KWARG_DESCRIPTION_GO_FIRST
             tools = add_inner_thoughts_to_functions(
                 functions=tools,
                 inner_thoughts_key=INNER_THOUGHTS_KWARG,
@@ -244,21 +253,18 @@ class LlamaClient(LLMClientBase):
                         })
 
                     else:
-                        message_content.append({
-                            'type': 'text',
-                            'text': f"<image {global_image_idx}>",
-                        })
                         file = self.file_manager.get_file_metadata_by_id(
                             m['image_id'])
                         if file.source_url is not None:
                             message_content.append({
                                 'type': 'image_url',
-                                'image_url': {'url': file.source_url, 'detail': m['detail']},
+                                'image_url': {'url': file.source_url},
                             })
                         elif file.file_path is not None:
                             message_content.append({
                                 'type': 'image_url',
-                                'image_url': {'url': encode_image(file.file_path), 'detail': m['detail']},
+                                # 'image_url': {'url': encode_image(file.file_path), 'detail': m['detail']},
+                                'image_url': {'url': "file://" + file.file_path},
                             })
                         else:
                             raise ValueError(
@@ -277,7 +283,8 @@ class LlamaClient(LLMClientBase):
                     if local_path is not None and os.path.exists(local_path):
                         message_content.append({
                             'type': 'image_url',
-                            'image_url': {'url': encode_image(local_path)},
+                            # 'image_url': {'url': encode_image(local_path)},
+                            'image_url': {'url': local_path},
                         })
                     else:
                         message_content.append({

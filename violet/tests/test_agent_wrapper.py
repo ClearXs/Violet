@@ -1,18 +1,17 @@
 import pytest
 
 from violet.agent.agent_wrapper import AgentWrapper
+from violet.config import VioletConfig
 
 
-import os
-
-cwd = os.getcwd()
-
-config_path = cwd + "/violet/configs/config.yaml"
+@pytest.fixture
+def llm_config():
+    return VioletConfig.load().get_llm_config()
 
 
 @pytest.mark.asyncio
-async def test_initial():
-    agent_wrapper = AgentWrapper(agent_config_file=config_path)
+async def test_initial(llm_config):
+    agent_wrapper = AgentWrapper(llm_config)
 
     agent_wrapper.send_message(
         message="peter likes computer-games",
@@ -23,8 +22,8 @@ async def test_initial():
 
 
 @pytest.mark.asyncio
-async def test_query_memory():
-    agent_wrapper = AgentWrapper(agent_config_file=config_path)
+async def test_query_memory(llm_config):
+    agent_wrapper = AgentWrapper(llm_config)
 
     agent_wrapper.send_message(
         message="peter like what?",

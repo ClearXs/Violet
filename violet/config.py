@@ -42,6 +42,7 @@ config = None
 
 @dataclass
 class VioletConfig:
+    base_path: str = VIOLET_DIR
     config_path: str = os.getenv(
         "VIOLET_CONFIG_PATH") or os.path.join(VIOLET_DIR, "config")
 
@@ -213,6 +214,32 @@ class VioletConfig:
         config.create_config_dir()  # create dirs
 
         return config
+
+    def get_llm_config(self) -> LLMConfig:
+        import os
+        import yaml
+
+        llm_config_path = os.path.join(self.base_path, 'config.yaml')
+
+        if os.path.exists(llm_config_path) is False:
+            # TODO modify local model name
+            llm_config = LLMConfig.default_config('gpt-4')
+
+            with open(llm_config_path, "w", encoding="utf-8") as f:
+                yaml.safe_dump(
+                    llm_config.to_dict(),
+                    f,
+                    allow_unicode=True,
+                    indent=2,
+                    sort_keys=True)
+
+            return llm_config
+
+        else:
+            with open(llm_config_path, "r") as f:
+                agent_config = yaml.safe_load(f)
+
+            return LLMConfig.model_validate(agent_config)
 
     def save(self):
         import violet

@@ -57,34 +57,55 @@ class MlxClient(LLMClientBase):
         force_tool_call: Optional[str] = None,
         existing_file_uris: Optional[List[str]] = None,
     ) -> dict:
+        """
+        Build request data for the MLX model.
+        MLX non-existing tools use.
+        """
         chat_messages = []
         images = []
-        audios = []
+
+        img_idx = -1
 
         for message in messages:
             content = message.content
 
-            if content:
-                mlx_message = {
-                    "role": message.role.value,
-                    "content": []
-                }
-                for content_part in content:
-                    chat, image_path, audio_path = self._to_convert_content(
-                        content_part)
+            if content is None:
+                continue
 
-                    if chat:
-                        mlx_message['content'].append(chat)
+            mlx_message = {
+                "role": message.role.value,
+                "content": []
+            }
 
-                    if image_path:
-                        images.append(image_path)
+            for content_part in content:
+                chat, image_path, _ = self._to_convert_content(
+                    content_part)
 
-                    if audio_path:
-                        audios.append(audio_path)
+                if chat:
+                    # adjust chat content should with image is same index
+                    # otherwise proceed newly chat with newly image.
+                    # chat_idx = img_idx
+                    # if chat_idx == -1:
+                    #     chat_idx = 0
+
+                    # if len(chat_messages) <= chat_idx or chat_messages[chat_idx] == None:
+                    #     mlx_message = {
+                    #         "role": message.role.value,
+                    #         "content": []
+                    #     }
+                    #     chat_messages.append(mlx_message)
+
+                    # chat_messages[chat_idx]['content'].append(chat)
+                    mlx_message["content"].append(chat)
+
+                if image_path:
+                    images.append(image_path)
+                    img_idx += 1
 
                 chat_messages.append(mlx_message)
 
-        return {"chat_messages": chat_messages, "images": images, "audios": audios}
+        # exclude audio
+        return {"chat_messages": chat_messages, "images": images, "audios": []}
 
     def request(self, request_data: dict) -> dict:
 

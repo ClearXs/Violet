@@ -6,7 +6,6 @@ import uuid
 import pytz
 import base64
 import threading
-from dotenv import load_dotenv
 from datetime import datetime
 from violet.utils import parse_json
 from PIL import Image
@@ -83,20 +82,16 @@ def get_image_mime_type(image_path):
 
 class AgentWrapper():
 
-    def __init__(self, agent_config_file, load_from=None):
+    def __init__(self, llm_config: LLMConfig, load_from=None):
 
         # If load_from is specified, restore the database first before any agent initialization
         if load_from is not None:
             self._restore_database_before_init(load_from)
 
-        with open(agent_config_file, "r") as f:
-            agent_config = yaml.safe_load(f)
-
-        self.agent_config = agent_config
-        self.agent_name = agent_config['agent_name']
-        self.model_name = agent_config['model_name']
-        self.model_provider = agent_config.get('model_provider', None)
-        self.is_screen_monitor = agent_config.get('is_screen_monitor', False)
+        self.agent_name = 'violet'
+        self.is_screen_monitor = False
+        self.llm_config = llm_config
+        self.model_name = llm_config.model
         self.chat_agent_standalone = True
 
         # Initialize logger early
@@ -109,15 +104,6 @@ class AgentWrapper():
             LLMConfig.default_config("gpt-4o-mini"))
         self.client.set_default_embedding_config(
             EmbeddingConfig.default_config("text-embedding-004"))
-
-        llm_config = LLMConfig(
-            model=agent_config.get('model_name'),
-            model_endpoint_type=agent_config.get(
-                'model_endpoint_type', 'openai'),
-            model_endpoint=agent_config.get('model_endpoint', ''),
-            api_key=agent_config.get('api_key'),
-            **agent_config.get('generation_config', {})
-        )
 
         self.client.set_default_llm_config(llm_config=llm_config)
 
@@ -477,27 +463,6 @@ class AgentWrapper():
         )
 
         self.active_persona_name = persona_name
-
-    def _determine_model_provider(self, model_name: str, custom_agent_config: dict = None) -> str:
-        """
-        Determine the effective model provider based on configuration override or model defaults.
-        Returns the provider type (e.g., 'openai', 'azure_openai', 'google_ai', 'anthropic').
-        """
-        # Check for provider override in custom_agent_config first
-        if custom_agent_config and custom_agent_config.get('model_provider'):
-            return custom_agent_config['model_provider']
-
-        # Check for provider override in instance config
-        if self.model_provider:
-            return self.model_provider
-
-        # Fall back to default provider based on model
-        if model_name in GEMINI_MODELS:
-            return "google_ai"
-        elif 'claude' in model_name.lower():
-            return "anthropic"
-        elif model_name in OPENAI_MODELS:
-            return "openai"
 
     def _create_llm_config_for_provider(self, model_name: str, provider: str, custom_agent_config: dict = None) -> 'LLMConfig':
         """

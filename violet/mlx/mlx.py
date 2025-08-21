@@ -21,7 +21,7 @@ def load_local_model(model: str, path: str) -> Tuple[nn.Module, Union[PreTrained
     global local_processor
 
     try:
-        local_model, processor = load(path)
+        local_model, processor = load(path, trust_remote_code=True)
 
         local_foundation_model = local_model
         local_processor = processor
