@@ -1,18 +1,25 @@
 import pytest
+from datetime import datetime
 
 from violet.agent.agent_wrapper import AgentWrapper
 from violet.config import VioletConfig
 
 
 @pytest.fixture
-def llm_config():
-    return VioletConfig.load().get_llm_config()
+def agent_wrapper():
+    llm_config = VioletConfig.load().get_llm_config()
+    embedding_config = VioletConfig.load().get_embedding_config()
+
+    agent_wrapper = AgentWrapper(
+        llm_config=llm_config, embedding_config=embedding_config)
+
+    yield agent_wrapper
+
+    agent_wrapper.close()
 
 
 @pytest.mark.asyncio
-async def test_initial(llm_config):
-    agent_wrapper = AgentWrapper(llm_config)
-
+async def test_initial(agent_wrapper):
     agent_wrapper.send_message(
         message="peter likes computer-games",
         memorizing=True,
@@ -22,12 +29,16 @@ async def test_initial(llm_config):
 
 
 @pytest.mark.asyncio
-async def test_query_memory(llm_config):
-    agent_wrapper = AgentWrapper(llm_config)
+async def test_query_memory(agent_wrapper):
 
-    agent_wrapper.send_message(
+    start_time = datetime.now().timestamp()
+
+    output = agent_wrapper.send_message(
         message="peter like what?",
         memorizing=False,
         force_absorb_content=True)
 
-    assert agent_wrapper is not None
+    end_time = datetime.now().timestamp()
+    duration = end_time - start_time
+    print(f'elapse time: {duration}')
+    print(f'result {output}')

@@ -7,14 +7,39 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ToolSettings(BaseSettings):
-    composio_api_key: Optional[str] = None
+    composio_api_key: str | None = Field(
+        default=None, description="API key for Composio")
 
-    # E2B Sandbox configurations
-    e2b_api_key: Optional[str] = None
-    e2b_sandbox_template_id: Optional[str] = None  # Updated manually
+    # Sandbox Configurations
+    e2b_api_key: str | None = Field(
+        default=None, description="API key for using E2B as a tool sandbox")
+    e2b_sandbox_template_id: str | None = Field(
+        default=None, description="Template ID for E2B Sandbox. Updated Manually.")
+
+    modal_token_id: str | None = Field(
+        default=None, description="Token id for using Modal as a tool sandbox")
+    modal_token_secret: str | None = Field(
+        default=None, description="Token secret for using Modal as a tool sandbox")
+
+    # Search Providers
+    tavily_api_key: str | None = Field(
+        default=None, description="API key for using Tavily as a search provider.")
+    firecrawl_api_key: str | None = Field(
+        default=None, description="API key for using Firecrawl as a search provider.")
 
     # Local Sandbox configurations
-    local_sandbox_dir: Optional[str] = None
+    tool_exec_dir: Optional[str] = None
+    tool_sandbox_timeout: float = 180
+    tool_exec_venv_name: Optional[str] = None
+    tool_exec_autoreload_venv: bool = True
+
+    # MCP settings
+    mcp_connect_to_server_timeout: float = 30.0
+    mcp_list_tools_timeout: float = 30.0
+    mcp_execute_tool_timeout: float = 60.0
+    # if False, will throw if attempting to read/write from file
+    mcp_read_from_config: bool = False
+    mcp_disable_stdio: bool = False
 
 
 class SummarizerSettings(BaseSettings):

@@ -1,12 +1,14 @@
 import os
 
+from violet.config import VioletConfig
 from violet.constants import VIOLET_DIR
 
 
 def get_persona_text(key):
     filename = f"{key}.txt"
-    file_path = os.path.join(os.path.dirname(__file__), "personas", filename)
-    # file_path = os.path.join("./violet/prompts/personas", filename)
+
+    config = VioletConfig.get_config()
+    file_path = os.path.join(config.persona_path, filename)
 
     # first look in prompts/system/*.txt
     if os.path.exists(file_path):

@@ -1,6 +1,6 @@
-import os
 import time
 import json
+from typing import Optional
 import yaml
 import uuid
 import pytz
@@ -27,6 +27,7 @@ from violet.schemas.agent import AgentType
 from violet.prompts import gpt_system
 from violet.schemas.memory import ChatMemory
 from violet.settings import model_settings
+from violet.client.client import Client
 
 logging.basicConfig(level=logging.INFO,
                     format='[%(name)s] %(levelname)s: %(message)s')
@@ -80,17 +81,40 @@ def get_image_mime_type(image_path):
         return 'image/jpeg'
 
 
-class AgentWrapper():
+class AgentWrapper:
 
-    def __init__(self, llm_config: LLMConfig, load_from=None):
+    agent_name: str = "violet"
+    llm_config: LLMConfig
+    embedding_config: Optional[EmbeddingConfig] = None
+    model_name: str
+    embedding_model_name: Optional[str] = None
+
+    chat_agent_standalone: bool = True
+    # whether enable screen monitor
+    is_screen_monitor: bool = False
+    # when enable screen monitor the send messages will be bring recent screenshots images messages.
+    include_recent_screenshots: bool = True
+
+    logger: any
+    client: Client
+    agent_states: AgentStates
+    temp_message_accumulator: TemporaryMessageAccumulator
+    message_queue: MessageQueue
+
+    def __init__(self,
+                 llm_config: LLMConfig,
+                 embedding_config: Optional[EmbeddingConfig] = None,
+                 agent_name: Optional[str] = 'violet',
+                 load_from=None):
 
         # If load_from is specified, restore the database first before any agent initialization
         if load_from is not None:
             self._restore_database_before_init(load_from)
-
-        self.agent_name = 'violet'
-        self.is_screen_monitor = False
         self.llm_config = llm_config
+        self.embedding_config = embedding_config
+
+        self.agent_name = agent_name
+        self.is_screen_monitor = False
         self.model_name = llm_config.model
         self.chat_agent_standalone = True
 
@@ -100,12 +124,9 @@ class AgentWrapper():
         self.logger.setLevel(logging.INFO)
 
         self.client = create_client()
-        self.client.set_default_llm_config(
-            LLMConfig.default_config("gpt-4o-mini"))
-        self.client.set_default_embedding_config(
-            EmbeddingConfig.default_config("text-embedding-004"))
-
         self.client.set_default_llm_config(llm_config=llm_config)
+        self.client.set_default_embedding_config(
+            embedding_config=embedding_config)
 
         # Initialize agent states container
         self.agent_states = AgentStates()
@@ -120,7 +141,8 @@ class AgentWrapper():
                 # Update agent state to llm_config
                 new_agent_state = self.client.update_agent_config(
                     agent_id=agent_state.id,
-                    llm_config=llm_config
+                    llm_config=llm_config,
+                    embedding_config=embedding_config
                 )
 
                 if agent_state.name == 'chat_agent':
@@ -204,12 +226,9 @@ class AgentWrapper():
                 # Set the agent state on the appropriate attribute
                 setattr(self.agent_states, config['attr_name'], agent_state)
 
-        # for agent_state in all_agent_states:
-        #     messages = self.client.server.agent_manager.get_in_context_messages(agent_id=agent_state.id, actor=self.client.user)
-        #     print(agent_state.name, len(messages))
-
         self.set_timezone(self.client.server.user_manager.get_user_by_id(
             self.client.user_id).timezone)
+
         # This will now also set self.active_persona_name
         self.set_persona("helpful_assistant")
 
@@ -226,10 +245,9 @@ class AgentWrapper():
         self.uri_to_create_time = {}
         self.upload_manager = None
 
-        print(f"🔄 Initializing model: {self.model_name}")
-
-        self.set_model(self.model_name)
-        self.set_memory_model(self.model_name)
+        # set and load model
+        self.set_model(self.llm_config)
+        self.set_embedding_model(self.embedding_config)
 
         # Initialize temporary message accumulator for ALL violet models
         self.temp_message_accumulator = TemporaryMessageAccumulator(
@@ -546,42 +564,42 @@ class AgentWrapper():
 
         return llm_config
 
-    def set_model(self, model_name: str, custom_agent_config: dict = None) -> dict:
+    def set_model(self, llm_config: LLMConfig, force: bool = True) -> None:
         """
-        Set the model for the agent.
-        Returns a dictionary with success status and any missing API keys.
+        Set the model and load local model (if type is llama, mlx) if force is True for the agent.
         """
-        try:
-            self.model_name = model_name
+        self.model_name = llm_config.model
 
-            status = self.check_api_key_status()
+        model_endpoint_type = llm_config.model_endpoint_type
 
-            result = {
-                'success': True,
-                'message': f'Model set to {model_name}',
-                'missing_keys': status['missing_keys'],
-                'model_requirements': status['model_requirements']
-            }
+        if force:
+            if model_endpoint_type == 'llama':
+                from violet.llama import load_model, uninstall_model
 
-            if status['missing_keys']:
-                result['message'] += f", but missing API keys: {', '.join(status['missing_keys'])}"
+                uninstall_model()
+                load_model(llm_config=llm_config)
 
-            return result
+            if model_endpoint_type == 'mlx-vlm':
+                from violet.mlx import load_model
 
-        except Exception as e:
-            self.logger.error(f"Error setting model: {e}")
-            return {
-                'success': False,
-                'message': f'Failed to set model: {str(e)}',
-                'missing_keys': [],
-                'model_requirements': {}
-            }
+                load_model(llm_config=llm_config)
 
-    def set_memory_model(self, new_model, custom_agent_config: dict = None):
-        """Set the model specifically for memory management operations"""
+    def set_embedding_model(self, embedding_config: Optional[EmbeddingConfig], force: bool = True) -> None:
+        """
+        Set the embedding model 
+        """
 
-        # Update the memory model name
-        self.memory_model_name = new_model
+        if embedding_config:
+            self.embedding_model_name = embedding_config.embedding_model
+
+        if embedding_config and force:
+            embedding_endpoint_type = embedding_config.embedding_endpoint_type
+
+            if embedding_endpoint_type == 'llama':
+                from violet.llama import load_embedding_model, uninstall_embedding_model
+                uninstall_embedding_model()
+
+                load_embedding_model(embedding_config=embedding_config)
 
     def get_current_model(self) -> str:
         """
@@ -595,7 +613,16 @@ class AgentWrapper():
         Get the current model name being used by the memory manager.
         Returns the model name string.
         """
-        return getattr(self, 'memory_model_name', self.model_name)  # Fallback to chat model if not set
+        # TODO remove it.
+        # Fallback to chat model if not set
+        return getattr(self, 'memory_model_name', self.model_name)
+
+    def get_current_embedding_model(self) -> str:
+        """
+        Get the current embedding model name being used by the embedding model.
+        Returns the embedding model name string.
+        """
+        return self.embedding_model_name
 
     def get_persona_details(self) -> dict[str, str]:
         """
@@ -2460,3 +2487,25 @@ Please perform this analysis and create new memories as appropriate. Provide a d
         except Exception as e:
             self.logger.error(f"Error exporting resource memories: {e}")
             return [], 0
+
+    def close(self):
+        """
+        Close Agent relevant resources, like model, memory, etc.
+        """
+
+        llm_config = self.llm_config
+        model_type = llm_config.model_endpoint_type
+        if model_type == 'llama':
+            from violet.llama import uninstall_model
+
+            uninstall_model()
+
+        embedding_config = self.embedding_config
+
+        if embedding_config is not None:
+
+            embedding_type = embedding_config.embedding_endpoint_type
+            if embedding_type == 'llama':
+                from violet.llama import uninstall_embedding_model
+
+                uninstall_embedding_model()

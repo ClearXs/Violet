@@ -1,5 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import pytest
+from tqdm import tqdm
 from violet.llm_api.llama_client import LlamaClient
 from violet.log import get_logger
 from violet.schemas.llm_config import LLMConfig
@@ -45,12 +47,16 @@ mmproj_name = None
 
 @pytest.fixture()
 def llama_config():
-    return LLMConfig(
+    yield LLMConfig(
         model=model_name,
         mmproj_model=mmproj_name,
         model_endpoint_type="llama",
         context_window=32768
     )
+
+    from violet.llama import uninstall_all
+
+    uninstall_all()
 
 
 @pytest.mark.asyncio()
@@ -123,3 +129,24 @@ async def test_image_request(llama_config):
     duration = end_time - start_time
     print(f'elapse time: {duration}')
     print(f'result {res}')
+
+
+@pytest.mark.asyncio
+async def test_multi_message_send(llama_config):
+    def create_client():
+        return LlamaClient(llm_config=llama_config)
+
+    message: Message = Message(role="user", content=[
+                               TextContent(type='text', text="who are you?")])
+
+    futures = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        for i in range(100):
+            future = executor.submit(
+                lambda: create_client().send_llm_request([message])
+            )
+            futures.append(future)
+
+        for future in tqdm(as_completed(futures), total=len(futures)):
+            result = future.result()
+            print(f"result: {result}")

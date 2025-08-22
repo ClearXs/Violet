@@ -1,11 +1,12 @@
 import os
 
-from violet.constants import VIOLET_DIR
+from violet.config import VioletConfig
 
 
 def get_system_text(key):
     filename = f"{key}.txt"
-    file_path = os.path.join(os.path.dirname(__file__), "system", filename)
+    prompts_path = VioletConfig.prompts_path
+    file_path = os.path.join(prompts_path, "system", filename)
 
     # first look in prompts/system/*.txt
     if os.path.exists(file_path):

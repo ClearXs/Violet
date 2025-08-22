@@ -39,14 +39,13 @@ from violet.schemas.sandbox_config import E2BSandboxConfig, LocalSandboxConfig, 
 from violet.schemas.tool import Tool, ToolCreate, ToolUpdate
 from violet.schemas.tool_rule import BaseToolRule
 from violet.interface import QueuingInterface
-from violet.prompts import gpt_persona
 
 
 def create_client():
     return LocalClient()
 
 
-class AbstractClient(object):
+class Client(object):
     def __init__(
         self,
         debug: bool = False,
@@ -347,7 +346,7 @@ class AbstractClient(object):
         raise NotImplementedError
 
 
-class LocalClient(AbstractClient):
+class LocalClient(Client):
     """
     A local client for Violet, which corresponds to a single user.
 
@@ -895,11 +894,13 @@ class LocalClient(AbstractClient):
         self,
         agent_id: str,
         llm_config: Optional[LLMConfig] = None,
+        embedding_config: Optional[EmbeddingConfig] = None
     ):
-        return self.server.agent_manager.update_llm_config(
+        return self.server.agent_manager.update_agent(
             agent_id=agent_id,
-            llm_config=llm_config,
-            actor=self.server.user_manager.get_user_by_id(self.user.id)
+            actor=self.server.user_manager.get_user_by_id(self.user.id),
+            agent_update=UpdateAgent(
+                llm_config=llm_config, embedding_config=embedding_config)
         )
 
     def get_tools_from_agent(self, agent_id: str) -> List[Tool]:

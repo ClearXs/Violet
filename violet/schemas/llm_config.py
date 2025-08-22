@@ -46,11 +46,12 @@ class LLMConfig(BaseModel):
         "koboldcpp",
         "vllm",
         "hugging-face",
-        "mistral",
         "together",  # completions endpoint
         "bedrock",
         "deepseek",
         "xai",
+        # run llm on-device
+        "mistral",
         "llama",
         "mlx-vlm"
     ]] = Field(None, description="The endpoint type for the model.")

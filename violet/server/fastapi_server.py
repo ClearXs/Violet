@@ -57,7 +57,6 @@ To fix it, install FFmpeg:
 The warning doesn't affect functionality as pydub falls back gracefully.
 """
 
-
 logger = get_logger(__name__)
 
 # Global agent instance
@@ -80,8 +79,9 @@ async def lifespan(app: FastAPI):
 async def setup():
     global agent
 
-    llm_config = VioletConfig.get_llm_config()
-    agent = AgentWrapper(llm_config)
+    llm_config = VioletConfig.get_config().get_llm_config()
+    embedding_config = VioletConfig.get_config().get_embedding_config()
+    agent = AgentWrapper(llm_config, embedding_config)
 
     log_telemetry(
         logger=logger,
@@ -91,6 +91,9 @@ async def setup():
 
 async def graceful_shutdown():
     global agent
+
+    if agent:
+        agent.close()
 
 
 app = FastAPI(title="Violet API",

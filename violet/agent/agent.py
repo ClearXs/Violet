@@ -334,7 +334,7 @@ class Agent(BaseAgent):
         function_call: Optional[str] = None,
         first_message: bool = False,
         stream: bool = False,  # TODO move to config?
-        empty_response_retry_limit: int = 3,
+        empty_response_retry_limit: int = 1,
         backoff_factor: float = 0.5,  # delay multiplier for exponential backoff
         max_delay: float = 10.0,  # max delay between retries
         step_count: Optional[int] = None,
@@ -426,7 +426,7 @@ class Agent(BaseAgent):
                         f"API call returned an empty message: {response}")
 
                 for choice in response.choices:
-                    if choice.message.content == '' and len(choice.message.tool_calls) == 0:
+                    if choice.message.content == '' and choice.message.tool_calls and len(choice.message.tool_calls) == 0:
                         raise ValueError(
                             f"API call returned an empty message: {response}")
 
@@ -1652,10 +1652,38 @@ These keywords have been used to retrieve relevant memories from the database.
             #         json.dump(results_to_log, f, indent=2)
 
             # Step 6: extend the message history
+
+            def filter_empty_content_messages(messages: List[Message]) -> List[Message]:
+                filtered_messages = []
+
+                for message in messages:
+                    if not message.content:
+                        continue
+
+                    has_non_empty_content = False
+                    for content_part in message.content:
+                        if isinstance(content_part, TextContent):
+                            if content_part.text and content_part.text.strip():
+                                has_non_empty_content = True
+                                break
+                        elif isinstance(content_part, (ImageContent, FileContent, CloudFileContent)):
+                            has_non_empty_content = True
+                            break
+                        else:
+                            has_non_empty_content = True
+                            break
+
+                    if has_non_empty_content:
+                        filtered_messages.append(message)
+
+                return filtered_messages
+
             if len(messages) > 0:
-                all_new_messages = messages + all_response_messages
+                all_new_messages = messages + \
+                    filter_empty_content_messages(all_response_messages)
             else:
-                all_new_messages = all_response_messages
+                all_new_messages = filter_empty_content_messages(
+                    all_response_messages)
 
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response.usage.total_tokens

@@ -1,7 +1,7 @@
 [project]
 name = "violet"
 version = "0.1.0"
-description = "next generation interaction system"
+description = "Next Generation Interaction System"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Apache License 2.0" }
@@ -27,6 +27,7 @@ dependencies = [
     "llama-cpp-python>=0.3.15",
     "llama-index>=0.13.1",
     "matplotlib>=3.10.5",
+    "mcp>=1.13.0",
     "mlx-vlm>=0.3.3",
     "numpy>2.0",
     "opencc>=1.1.9",

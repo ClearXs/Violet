@@ -5,6 +5,7 @@ import numpy as np
 import tiktoken
 
 from violet.constants import EMBEDDING_TO_TOKENIZER_DEFAULT, EMBEDDING_TO_TOKENIZER_MAP, MAX_EMBEDDING_DIM
+from violet.llama import load_embedding_model
 from violet.schemas.embedding_config import EmbeddingConfig
 from violet.utils import is_valid_url, printd
 
@@ -164,37 +165,15 @@ class OllamaEmbeddings:
 
 class LlamaEmbeddings:
 
-    def __init__(self, embeddings_config: EmbeddingConfig):
-        self.embeddings_config = embeddings_config
-        from violet.llama.llama import local_embeddings_model, load_local_embeddings_model, model_storage_path
+    def __init__(self, embedding_config: EmbeddingConfig):
+        self.embedding_config = embedding_config
 
-        embedding_model = embeddings_config.embedding_model
-
-        if local_embeddings_model is None:
-            embedding_model_path = None
-
-            if embedding_model.endswith(".gguf"):
-                embedding_model_path = model_storage_path / embedding_model
-            else:
-                embedding_model_path = model_storage_path / \
-                    (embedding_model + ".gguf")
-
-            if embedding_model_path.exists() is False:
-                raise FileNotFoundError(
-                    f"Embedding model not found at {embedding_model_path}")
-
-            # through llama load local embedding model
-            local_embeddings_model = load_local_embeddings_model(
-                model=embedding_model,
-                path=str(embedding_model_path))
-
-            self.local_embeddings_model = local_embeddings_model
-        else:
-            self.local_embeddings_model = local_embeddings_model
+        self.local_embeddings_model = load_embedding_model(
+            embedding_config=embedding_config)
 
     def get_text_embedding(self, text: str) -> List[float]:
         res = self.local_embeddings_model.create_embedding(
-            text, model=self.embeddings_config.embedding_model)
+            text, model=self.embedding_config.embedding_model)
 
         return res['data'][0]['embedding']
 
@@ -244,7 +223,7 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
     elif endpoint_type == 'llama':
 
         model = LlamaEmbeddings(
-            embeddings_config=config
+            embedding_config=config
         )
         return model
 

@@ -1,7 +1,6 @@
 import configparser
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 import violet
 from violet.constants import (
@@ -55,18 +54,11 @@ class VioletConfig:
 
     # model storage path
     model_storage_path = VIOLET_DIR + "/models"
-
     # file storage path
     file_storage_path = VIOLET_DIR + "/files"
-
-    # model parameters
-    # default_llm_config: LLMConfig = None
-
-    # embedding parameters
-    # default_embedding_config: EmbeddingConfig = None
-
-    # NONE OF THIS IS CONFIG ↓↓↓↓↓
-    # @norton120 these are the metdadatastore
+    # persona assert folder path
+    persona_path = VIOLET_DIR + '/personas'
+    prompts_path = VIOLET_DIR + '/prompts'
 
     # database configs: archival
     archival_storage_type: str = "sqlite"  # local, db
@@ -106,19 +98,9 @@ class VioletConfig:
         pass
 
     @classmethod
-    def load(cls, llm_config: Optional[LLMConfig] = None, embedding_config: Optional[EmbeddingConfig] = None) -> "VioletConfig":
+    def load(cls) -> "VioletConfig":
         # avoid circular import
         from violet.utils import printd
-
-        # from violet.migrate import VERSION_CUTOFF, config_is_compatible
-        # if not config_is_compatible(allow_empty=True):
-        #    error_message = " ".join(
-        #        [
-        #            f"\nYour current config file is incompatible with Violet versions later than {VERSION_CUTOFF}.",
-        #            f"\nTo use Violet, you must either downgrade your Violet version (<= {VERSION_CUTOFF}) or regenerate your config using `violet configure`, or `violet migrate` if you would like to migrate old agents.",
-        #        ]
-        #    )
-        #    raise ValueError(error_message)
 
         config = configparser.ConfigParser()
 
@@ -130,15 +112,10 @@ class VioletConfig:
 
         # insure all configuration directories exist
         cls.create_config_dir()
-
-        # create model storage path
-        model_storage_path = cls.model_storage_path
-        if os.path.exists(model_storage_path) is False:
-            os.makedirs(model_storage_path, exist_ok=True)
-
-        file_storage_path = cls.file_storage_path
-        if os.path.exists(file_storage_path) is False:
-            os.makedirs(file_storage_path, exist_ok=True)
+        cls.create_model_storage_dir()
+        cls.create_file_storage_dir()
+        cls.create_personas_dir()
+        cls.create_prompts_dir()
 
         if os.path.exists(config_path):
             # read existing config
@@ -216,13 +193,15 @@ class VioletConfig:
         return config
 
     def get_llm_config(self) -> LLMConfig:
-        import os
+        """
+        Get violet path config.yaml (.violet/config.yaml) configuration file and convert to "LLMConfig"
+        """
+
         import yaml
 
         llm_config_path = os.path.join(self.base_path, 'config.yaml')
 
         if os.path.exists(llm_config_path) is False:
-            # TODO modify local model name
             llm_config = LLMConfig.default_config('gpt-4')
 
             with open(llm_config_path, "w", encoding="utf-8") as f:
@@ -235,11 +214,38 @@ class VioletConfig:
 
             return llm_config
 
-        else:
-            with open(llm_config_path, "r") as f:
-                agent_config = yaml.safe_load(f)
+        with open(llm_config_path, "r") as f:
+            agent_config = yaml.safe_load(f)
 
-            return LLMConfig.model_validate(agent_config)
+        return LLMConfig.model_validate(agent_config)
+
+    def get_embedding_config(self) -> EmbeddingConfig:
+        """
+            Get violet path embedding_config.yaml (.violet/embedding_config.yaml) configuration file and convert to "EmbeddingConfig"
+        """
+        import yaml
+
+        embedding_config_path = os.path.join(
+            self.base_path, 'embedding_config.yaml')
+
+        if os.path.exists(embedding_config_path) is False:
+            embedding_config = EmbeddingConfig.default_config(
+                'text-embedding-3-small')
+
+            with open(embedding_config_path, "w", encoding="utf-8") as f:
+                yaml.safe_dump(
+                    embedding_config.to_dict(),
+                    f,
+                    allow_unicode=True,
+                    indent=2,
+                    sort_keys=True)
+
+            return embedding_config
+
+        with open(embedding_config_path, "r") as f:
+            agent_config = yaml.safe_load(f)
+
+        return EmbeddingConfig.model_validate(agent_config)
 
     def save(self):
         import violet
@@ -250,55 +256,6 @@ class VioletConfig:
         set_field(config, "defaults", "preset", self.preset)
         set_field(config, "defaults", "persona", self.persona)
         set_field(config, "defaults", "human", self.human)
-
-        # model defaults
-        # set_field(config, "model", "model", self.default_llm_config.model)
-        # set_field(config, "model", "model_endpoint", self.default_llm_config.model_endpoint)
-        # set_field(
-        #    config,
-        #    "model",
-        #    "model_endpoint_type",
-        #    self.default_llm_config.model_endpoint_type,
-        # )
-        # set_field(config, "model", "model_wrapper", self.default_llm_config.model_wrapper)
-        # set_field(
-        #    config,
-        #    "model",
-        #    "context_window",
-        #    str(self.default_llm_config.context_window),
-        # )
-
-        # embeddings
-        # set_field(
-        #    config,
-        #    "embedding",
-        #    "embedding_endpoint_type",
-        #    self.default_embedding_config.embedding_endpoint_type,
-        # )
-        # set_field(
-        #    config,
-        #    "embedding",
-        #    "embedding_endpoint",
-        #    self.default_embedding_config.embedding_endpoint,
-        # )
-        # set_field(
-        #    config,
-        #    "embedding",
-        #    "embedding_model",
-        #    self.default_embedding_config.embedding_model,
-        # )
-        # set_field(
-        #    config,
-        #    "embedding",
-        #    "embedding_dim",
-        #    str(self.default_embedding_config.embedding_dim),
-        # )
-        # set_field(
-        #    config,
-        #    "embedding",
-        #    "embedding_chunk_size",
-        #    str(self.default_embedding_config.embedding_chunk_size),
-        # )
 
         # archival storage
         set_field(config, "archival_storage",
@@ -350,6 +307,30 @@ class VioletConfig:
         tmp_folder = os.path.join(VIOLET_DIR, "tmp")
         if not os.path.exists(tmp_folder):
             os.makedirs(tmp_folder, exist_ok=True)
+
+    @classmethod
+    def create_model_storage_dir(cls):
+        model_storage_path = cls.model_storage_path
+        if os.path.exists(model_storage_path) is False:
+            os.makedirs(model_storage_path, exist_ok=True)
+
+    @classmethod
+    def create_file_storage_dir(cls):
+        file_storage_path = cls.file_storage_path
+        if os.path.exists(file_storage_path) is False:
+            os.makedirs(file_storage_path, exist_ok=True)
+
+    @classmethod
+    def create_personas_dir(cls):
+        persona_path = cls.persona_path
+        if os.path.exists(persona_path) is False:
+            os.makedirs(persona_path, exist_ok=True)
+
+    @classmethod
+    def create_prompts_dir(cls):
+        prompts_path = cls.prompts_path
+        if os.path.exists(prompts_path) is False:
+            os.makedirs(prompts_path, exist_ok=True)
 
     @staticmethod
     def setup():

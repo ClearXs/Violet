@@ -1,6 +1,7 @@
+import threading
+import queue
 from typing import List, Literal, Optional, Tuple
 from llama_cpp import ChatCompletionRequestMessage, Llama
-
 from violet.log import get_logger
 from llama_cpp.llama_chat_format import MiniCPMv26ChatHandler, Qwen25VLChatHandler, Llava15ChatHandler
 
@@ -9,8 +10,38 @@ from violet.utils import log_telemetry
 
 logger = get_logger(__name__)
 
-local_foundation_model = None
-local_embeddings_model = None
+
+class QueueLlama(Llama):
+
+    chat_queue = queue.Queue()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        threading.Thread(target=self._handle_chat_completion,
+                         daemon=True).start()
+
+    def create_chat_completion(self, **kwargs):
+        holder = {}
+        self.chat_queue.put((kwargs, holder))
+        self.chat_queue.join()
+
+        if holder.get('error', None) is not None:
+            raise holder.get('error')
+
+        return holder['output']
+
+    def _handle_chat_completion(self):
+        while True:
+            try:
+                kwargs, holder = self.chat_queue.get()
+                output = super().create_chat_completion(**kwargs)
+                holder['output'] = output
+            except Exception as e:
+                logger.error(f"Error processing chat completion: {e}")
+                holder['error'] = e
+            finally:
+                self.chat_queue.task_done()
 
 
 def load_local_model(model: str,
@@ -27,13 +58,11 @@ def load_local_model(model: str,
     log_telemetry(logger=logger, event='load_llama_model',
                   **{"model": model, "path": path})
 
-    global local_foundation_model
-
     try:
         chat_handler = mmproj_path is not None and _get_chat_handler(
             model=model, mmproj_path=mmproj_path) or None
 
-        llm = Llama(
+        return QueueLlama(
             use_mmap=True,
             use_mlock=True,
             model_path=path,
@@ -45,36 +74,29 @@ def load_local_model(model: str,
             **kwargs
         )
 
-        local_foundation_model = llm
-        return llm
     except Exception as e:
         logger.error(f"Error loading llm model from path {path}: {e}")
         raise e
 
 
-def load_local_embeddings_model(model: str, path: str) -> Llama:
+def load_local_embedding_model(model: str, path: str) -> Llama:
     """
-    Load Local embeddings model
+    Load Local embedding model from llama
     """
 
     log_telemetry(logger=logger, event='load embedding model',
                   **{"model": model, "path": path})
 
-    global local_embeddings_model
-
     try:
 
-        llm = Llama(
+        return Llama(
             model_path=path,
             embedding=True
         )
-        local_embeddings_model = llm
     except Exception as e:
         logger.error(
             f'Error loading local embedding model from path {path}: {e}')
         raise e
-
-    return local_embeddings_model
 
 
 def _get_chat_handler(model: str, mmproj_path: str):

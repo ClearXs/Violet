@@ -1,15 +1,14 @@
 import datetime
 import gc
-from pathlib import Path
 from typing import List, Optional, Union
 import uuid
 
 from llama_cpp import ChatCompletion, ChatCompletionResponseChoice, CompletionUsage
-from violet.config import VioletConfig
 from violet.constants import INNER_THOUGHTS_KWARG
 from violet.llm_api.helpers import unpack_all_inner_thoughts_from_kwargs
 from violet.llm_api.llm_client_base import LLMClientBase
 from violet.log import get_logger
+from violet.mlx import load_model
 from violet.schemas.llm_config import LLMConfig
 from violet.schemas.message import Message
 from violet.schemas.openai.chat_completion_response import ChatCompletionResponse
@@ -30,24 +29,7 @@ class MlxClient(LLMClientBase):
     def __init__(self, llm_config, put_inner_thoughts_first=True, use_tool_naming=True):
         super().__init__(llm_config, put_inner_thoughts_first, use_tool_naming)
 
-        config = VioletConfig.get_config()
-
-        from violet.mlx.mlx import load_local_model, local_foundation_model, local_processor
-
-        if local_foundation_model is None:
-
-            # check path whether is existing.
-            should_model_path = llm_config.model
-            model_path = Path(config.model_storage_path) / should_model_path
-            if model_path.exists() is False:
-                raise FileNotFoundError(f"Model file not found: {model_path}")
-
-            self.model, self.processor = load_local_model(
-                should_model_path, str(model_path))
-
-        else:
-            self.model = local_foundation_model
-            self.processor = local_processor
+        self.model, self.processor = load_model(llm_config=llm_config)
 
     def build_request_data(
         self,

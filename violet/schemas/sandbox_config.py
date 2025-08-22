@@ -13,6 +13,7 @@ from violet.settings import tool_settings
 # Sandbox Config
 class SandboxType(str, Enum):
     E2B = "e2b"
+    MODAL = "modal"
     LOCAL = "local"
 
 
