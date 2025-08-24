@@ -1281,7 +1281,7 @@ class TTS:
                         ).detach()[0, 0, :]
                         audio_frag_end_idx.insert(0, 0)
                         batch_audio_fragment = [
-                            _batch_audio_fragment[audio_frag_end_idx[i - 1]: audio_frag_end_idx[i]]
+                            _batch_audio_fragment[audio_frag_end_idx[i - 1]                                                  : audio_frag_end_idx[i]]
                             for i in range(1, len(audio_frag_end_idx))
                         ]
                     else:
@@ -1653,3 +1653,16 @@ class TTS:
             audio_fragments[i + 1] = f2_
 
         return torch.cat(audio_fragments, 0)
+
+    def close(self):
+        """
+        Clean TTS model resources
+        """
+        self.t2s_model = None
+        self.vits_model = None
+        self.bert_tokenizer = None
+        self.bert_model = None
+        self.cnhuhbert_model = None
+
+        import gc
+        gc.collect()

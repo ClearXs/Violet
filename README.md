@@ -30,3 +30,4 @@ Thanks to the following projects for their open-source contributions.
 - [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS.git)
 - [MIRIX](https://github.com/Mirix-AI/violet.git)
 - [letta](https://github.com/letta-ai/letta.git)
+- [local-chat-vrm](https://github.com/pixiv/local-chat-vrm)

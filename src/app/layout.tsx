@@ -13,7 +13,7 @@ export default function RootLayout({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey) {
+      if ((event.metaKey || event.ctrlKey) && event.key === ',') {
         event.preventDefault();
         router.push('/settings');
       }

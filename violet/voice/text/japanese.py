@@ -1,7 +1,16 @@
 # modified from https://github.com/CjangCjengh/vits/blob/main/text/japanese.py
+from violet.config import VioletConfig
+from violet.voice.text.symbols import punctuation
 import re
 import os
 import hashlib
+
+
+# set jtalk dir from specific local dir
+config = VioletConfig.get_config()
+open_jtalk_dir = os.path.join(
+    config.model_storage_path, "GPT_SoVITS", "text", "open_jtalk_dic_utf_8-1.11")
+os.environ['OPEN_JTALK_DICT_DIR'] = open_jtalk_dir
 
 try:
     import pyopenjtalk
@@ -85,8 +94,6 @@ except Exception:
     # failed to load user dictionary, ignore.
     pass
 
-
-from violet.voice.text.symbols import punctuation
 
 # Regular expression matching Japanese without punctuation marks:
 _japanese_characters = re.compile(

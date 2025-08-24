@@ -17,7 +17,7 @@ from violet.config import VioletConfig
 from violet.log import get_logger
 from violet.utils import log_telemetry
 from violet.voice.api import router as VoiceRouter
-from violet.voice.api import setup as voice_setup
+from violet.voice.api import setup as voice_setup, shutdown_gracefully as voice_shutdown
 
 """
 VOICE RECORDING STRATEGY & ARCHITECTURE:
@@ -94,6 +94,9 @@ async def graceful_shutdown():
 
     if agent:
         agent.close()
+
+    # shutdown resource voice
+    voice_shutdown()
 
 
 app = FastAPI(title="Violet API",
@@ -378,15 +381,25 @@ async def send_message_endpoint(request: MessageRequest):
 
         # Run the blocking agent.send_message() in a background thread to avoid blocking other requests
         loop = asyncio.get_event_loop()
+
+        def send_message():
+            if request.memorizing == True:
+                return agent.add_memory(
+                    message=request.message,
+                    image_uris=request.image_uris,
+                    sources=request.sources,  # Pass sources to agent
+                    voice_files=request.voice_files,  # Pass voice files to agent
+                )
+
+            else:
+                return agent.chat(
+                    message=request.message,
+                    image_uris=request.image_uris,
+                )
+
         response = await loop.run_in_executor(
             None,  # Use default ThreadPoolExecutor
-            lambda: agent.send_message(
-                message=request.message,
-                image_uris=request.image_uris,
-                sources=request.sources,  # Pass sources to agent
-                voice_files=request.voice_files,  # Pass voice files to agent
-                memorizing=request.memorizing
-            )
+            lambda: send_message()
         )
 
         print(f"Agent response (non-streaming): {response}")
@@ -460,19 +473,27 @@ async def send_streaming_message_endpoint(request: MessageRequest):
 
             async def run_agent():
                 try:
+                    def send_message():
+                        if request.memorizing == True:
+                            return agent.add_memory(
+                                message=request.message,
+                                image_uris=request.image_uris,
+                                sources=request.sources,  # Pass sources to agent
+                                voice_files=request.voice_files,  # Pass voice files to agent
+                            )
+
+                        else:
+                            return agent.chat(
+                                message=request.message,
+                                image_uris=request.image_uris,
+                                display_intermediate_message=display_intermediate_message
+                            )
 
                     # Run agent.send_message in a background thread to avoid blocking
                     loop = asyncio.get_event_loop()
                     response = await loop.run_in_executor(
                         None,  # Use default ThreadPoolExecutor
-                        lambda: agent.send_message(
-                            message=request.message,
-                            image_uris=request.image_uris,
-                            sources=request.sources,  # Pass sources to agent
-                            voice_files=request.voice_files,  # Pass raw voice files
-                            memorizing=request.memorizing,
-                            display_intermediate_message=display_intermediate_message
-                        )
+                        lambda: send_message()
                     )
                     # Handle various response cases
                     if response is None:

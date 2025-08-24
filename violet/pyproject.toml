@@ -9,6 +9,7 @@ authors = [{ name = "ClearXs", email = "jiangw1027@gmail.com" }]
 maintainers = [{ name = "ClearXs", email = "jiangw1027@gmail.com" }]
 dependencies = [
     "anthropic>=0.63.0",
+    "chromadb>=1.0.20",
     "cn2an>=0.5.23",
     "colorama>=0.4.6",
     "demjson3>=3.0.6",

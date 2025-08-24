@@ -262,6 +262,199 @@ class AgentWrapper:
         # Pass URI tracking to accumulator
         self.temp_message_accumulator.uri_to_create_time = self.uri_to_create_time
 
+    def chat(self,
+             message=None,
+             image_uris=None,
+             display_intermediate_message=None):
+
+        if image_uris is not None:
+            if isinstance(message, str):
+                message = [{'type': 'text', 'text': message}]
+            for image_uri in image_uris:
+                mime_type = get_image_mime_type(image_uri)
+                message.append({'type': 'image_data', 'image_data': {
+                               'data': f"data:{mime_type};base64,{encode_image(image_uri)}", 'detail': 'auto'}})
+
+            # Only get recent images for chat context if user has enabled this feature
+        if self.include_recent_screenshots:
+
+            if isinstance(message, str):
+                message = [{'type': 'text', 'text': message}]
+
+            extra_messages = []
+
+            most_recent_images = self.temp_message_accumulator.get_recent_images_for_chat(
+                current_timestamp=datetime.now(self.timezone))
+
+            if len(most_recent_images) > 0:
+
+                extra_messages.append({
+                    'type': 'text',
+                    'text': f"Additional images (screenshots) from the system start here:"
+                })
+
+                for idx, (timestamp, file_ref, source) in enumerate(most_recent_images):
+
+                    if hasattr(file_ref, 'uri'):
+                        source_text = f"; Screenshot from App: {source}" if source else ""
+                        extra_messages.append({
+                            'type': 'text',
+                            'text': f"Timestamp: {timestamp}; Image Index {idx}" + source_text
+                        })
+                        extra_messages.append({
+                            'type': 'google_cloud_file_uri',
+                            'google_cloud_file_uri': file_ref.uri
+                        })
+                    else:
+                        # For non-GEMINI models, convert local file paths to base64
+                        try:
+                            source_text = f"; Screenshot from App: {source_text}" if source else ""
+                            extra_messages.append({
+                                'type': 'text',
+                                'text': f"Timestamp: {timestamp}; Image Index {idx}" + source_text
+                            })
+                            mime_type = get_image_mime_type(file_ref)
+                            base64_data = encode_image(file_ref)
+                            extra_messages.append({
+                                'type': 'image_data',
+                                'image_data': {
+                                    'data': f"data:{mime_type};base64,{base64_data}",
+                                    'detail': 'auto'
+                                }
+                            })
+                        except Exception as e:
+                            self.logger.error(
+                                f"Failed to encode image for chat context: {file_ref}, error: {e}")
+                            # Skip this image if encoding fails
+                            continue
+
+                extra_messages.append({
+                    'type': 'text',
+                    'text': f"Additional images (screenshots) from the system end here."
+                })
+
+            extra_messages = None if len(
+                extra_messages) == 0 else extra_messages
+
+        else:
+            extra_messages = None
+
+        # get the response according to the message
+        response, _ = self.message_queue.send_message_in_queue(
+            self.client,
+            self.agent_states.agent_state.id,
+            {
+                'message': message,
+                'display_intermediate_message': display_intermediate_message,
+                'force_response': True,
+                'existing_file_uris': set(list(self.uri_to_create_time.keys())),
+                'extra_messages': extra_messages,
+            },
+            agent_type='chat',
+        )
+
+        # Check if response is an error string
+        if response == "ERROR":
+            return "ERROR_RESPONSE_FAILED"
+
+        # Check if response has the expected structure
+        if not hasattr(response, 'messages') or len(response.messages) < 2:
+            return "ERROR_INVALID_RESPONSE_STRUCTURE"
+
+        try:
+
+            # find how many tools are called
+            num_tools_called = 0
+            for message in response.messages[::-1]:
+                if message.message_type == MessageType.tool_return_message:
+                    num_tools_called += 1
+                else:
+                    break
+
+            # Check if the message has tool_call attribute
+            # 1->3; 2->5
+            if not hasattr(response.messages[-(num_tools_called * 2 + 1)], 'tool_call'):
+                return "ERROR_NO_TOOL_CALL"
+
+            tool_call = response.messages[-(
+                num_tools_called * 2 + 1)].tool_call
+
+            parsed_args = parse_json(tool_call.arguments)
+
+            if 'message' not in parsed_args:
+                return "ERROR_NO_MESSAGE_IN_ARGS"
+
+            response_text = parsed_args['message']
+
+        except (AttributeError, KeyError, IndexError, json.JSONDecodeError) as e:
+            return "ERROR_PARSING_EXCEPTION"
+
+        # Add conversation to accumulator
+        self.temp_message_accumulator.add_user_conversation(
+            message, response_text)
+
+        return response_text
+
+    def add_memory(self,
+                   message=None,
+                   images=None,
+                   image_uris=None,
+                   sources=None,
+                   voice_files=None,
+                   delete_after_upload=True,
+                   specific_timestamps=None,
+                   force_absorb_content=False,
+                   async_upload=True):
+        # Validate that at least some content is provided for memorization
+        if message is None and images is None and image_uris is None and voice_files is None:
+            self.logger.warning(
+                "Warning: memorizing=True but no content (message, images, image_uris, or voice_files) provided. Skipping memorization.")
+            return None
+
+        # Get timestamp for this memorization event
+        if specific_timestamps is not None and len(specific_timestamps) > 0:
+            timestamp = specific_timestamps[0]
+        else:
+            timestamp = datetime.now(
+                self.timezone).strftime('%Y-%m-%d %H:%M:%S')
+
+        # Process images
+        if image_uris is None and images is not None:
+            image_uris = []
+            for image in images:
+                filename = f'./tmp/image_{uuid.uuid4()}.png'
+                image.save(filename)
+                image_uris.append(filename)
+
+        self.temp_message_accumulator.add_message(
+            {
+                'message': message,
+                'image_uris': image_uris,
+                'sources': sources,
+                'voice_files': voice_files,
+            },
+            timestamp,
+            delete_after_upload=delete_after_upload,
+            async_upload=async_upload
+        )
+
+        # Check if we should trigger memory absorption
+        ready_messages = self.temp_message_accumulator.should_absorb_content()
+        if force_absorb_content or ready_messages:
+            t1 = time.time()
+            # Pass the ready messages to absorb_content_into_memory if available
+            if ready_messages:
+                self.temp_message_accumulator.absorb_content_into_memory(
+                    self.agent_states, ready_messages)
+            else:
+                # Force absorb with whatever is available
+                self.temp_message_accumulator.absorb_content_into_memory(
+                    self.agent_states)
+            t2 = time.time()
+            self.logger.info(
+                f"Time taken to absorb content into memory: {t2 - t1} seconds")
+            self.clear_old_screenshots()
+
     def update_chat_agent_system_prompt(self, is_screen_monitoring: bool):
         '''
         Update chat agent system prompt based on screen monitoring status
@@ -1356,201 +1549,6 @@ Please perform this analysis and create new memories as appropriate. Provide a d
                 "Complete comprehensive memory optimization based on analysis.")
 
         return summary
-
-    def send_message(self,
-                     message=None,
-                     images=None,
-                     image_uris=None,
-                     sources=None,
-                     voice_files=None,
-                     memorizing=False,
-                     delete_after_upload=True,
-                     specific_timestamps=None,
-                     display_intermediate_message=None,
-                     force_absorb_content=False,
-                     async_upload=True):
-
-        if memorizing:
-
-            # Validate that at least some content is provided for memorization
-            if message is None and images is None and image_uris is None and voice_files is None:
-                self.logger.warning(
-                    "Warning: memorizing=True but no content (message, images, image_uris, or voice_files) provided. Skipping memorization.")
-                return None
-
-            # Get timestamp for this memorization event
-            if specific_timestamps is not None and len(specific_timestamps) > 0:
-                timestamp = specific_timestamps[0]
-            else:
-                timestamp = datetime.now(
-                    self.timezone).strftime('%Y-%m-%d %H:%M:%S')
-
-            # Process images
-            if image_uris is None and images is not None:
-                image_uris = []
-                for image in images:
-                    filename = f'./tmp/image_{uuid.uuid4()}.png'
-                    image.save(filename)
-                    image_uris.append(filename)
-
-            self.temp_message_accumulator.add_message(
-                {
-                    'message': message,
-                    'image_uris': image_uris,
-                    'sources': sources,
-                    'voice_files': voice_files,
-                },
-                timestamp,
-                delete_after_upload=delete_after_upload,
-                async_upload=async_upload
-            )
-
-            # Check if we should trigger memory absorption
-            ready_messages = self.temp_message_accumulator.should_absorb_content()
-            if force_absorb_content or ready_messages:
-                t1 = time.time()
-                # Pass the ready messages to absorb_content_into_memory if available
-                if ready_messages:
-                    self.temp_message_accumulator.absorb_content_into_memory(
-                        self.agent_states, ready_messages)
-                else:
-                    # Force absorb with whatever is available
-                    self.temp_message_accumulator.absorb_content_into_memory(
-                        self.agent_states)
-                t2 = time.time()
-                self.logger.info(
-                    f"Time taken to absorb content into memory: {t2 - t1} seconds")
-                self.clear_old_screenshots()
-
-        else:
-
-            if image_uris is not None:
-                if isinstance(message, str):
-                    message = [{'type': 'text', 'text': message}]
-                for image_uri in image_uris:
-                    mime_type = get_image_mime_type(image_uri)
-                    message.append({'type': 'image_data', 'image_data': {
-                                   'data': f"data:{mime_type};base64,{encode_image(image_uri)}", 'detail': 'auto'}})
-
-            # Only get recent images for chat context if user has enabled this feature
-            if self.include_recent_screenshots:
-
-                if isinstance(message, str):
-                    message = [{'type': 'text', 'text': message}]
-
-                extra_messages = []
-
-                most_recent_images = self.temp_message_accumulator.get_recent_images_for_chat(
-                    current_timestamp=datetime.now(self.timezone))
-
-                if len(most_recent_images) > 0:
-
-                    extra_messages.append({
-                        'type': 'text',
-                        'text': f"Additional images (screenshots) from the system start here:"
-                    })
-
-                    for idx, (timestamp, file_ref, source) in enumerate(most_recent_images):
-
-                        if hasattr(file_ref, 'uri'):
-                            source_text = f"; Screenshot from App: {source}" if source else ""
-                            extra_messages.append({
-                                'type': 'text',
-                                'text': f"Timestamp: {timestamp}; Image Index {idx}" + source_text
-                            })
-                            extra_messages.append({
-                                'type': 'google_cloud_file_uri',
-                                'google_cloud_file_uri': file_ref.uri
-                            })
-                        else:
-                            # For non-GEMINI models, convert local file paths to base64
-                            try:
-                                source_text = f"; Screenshot from App: {source_text}" if source else ""
-                                extra_messages.append({
-                                    'type': 'text',
-                                    'text': f"Timestamp: {timestamp}; Image Index {idx}" + source_text
-                                })
-                                mime_type = get_image_mime_type(file_ref)
-                                base64_data = encode_image(file_ref)
-                                extra_messages.append({
-                                    'type': 'image_data',
-                                    'image_data': {
-                                        'data': f"data:{mime_type};base64,{base64_data}",
-                                        'detail': 'auto'
-                                    }
-                                })
-                            except Exception as e:
-                                self.logger.error(
-                                    f"Failed to encode image for chat context: {file_ref}, error: {e}")
-                                # Skip this image if encoding fails
-                                continue
-
-                    extra_messages.append({
-                        'type': 'text',
-                        'text': f"Additional images (screenshots) from the system end here."
-                    })
-
-                extra_messages = None if len(
-                    extra_messages) == 0 else extra_messages
-
-            else:
-                extra_messages = None
-
-            # get the response according to the message
-            response, _ = self.message_queue.send_message_in_queue(
-                self.client,
-                self.agent_states.agent_state.id,
-                {
-                    'message': message,
-                    'display_intermediate_message': display_intermediate_message,
-                    'force_response': True,
-                    'existing_file_uris': set(list(self.uri_to_create_time.keys())),
-                    'extra_messages': extra_messages,
-                },
-                agent_type='chat',
-            )
-
-            # Check if response is an error string
-            if response == "ERROR":
-                return "ERROR_RESPONSE_FAILED"
-
-            # Check if response has the expected structure
-            if not hasattr(response, 'messages') or len(response.messages) < 2:
-                return "ERROR_INVALID_RESPONSE_STRUCTURE"
-
-            try:
-
-                # find how many tools are called
-                num_tools_called = 0
-                for message in response.messages[::-1]:
-                    if message.message_type == MessageType.tool_return_message:
-                        num_tools_called += 1
-                    else:
-                        break
-
-                # Check if the message has tool_call attribute
-                # 1->3; 2->5
-                if not hasattr(response.messages[-(num_tools_called * 2 + 1)], 'tool_call'):
-                    return "ERROR_NO_TOOL_CALL"
-
-                tool_call = response.messages[-(
-                    num_tools_called * 2 + 1)].tool_call
-
-                parsed_args = parse_json(tool_call.arguments)
-
-                if 'message' not in parsed_args:
-                    return "ERROR_NO_MESSAGE_IN_ARGS"
-
-                response_text = parsed_args['message']
-
-            except (AttributeError, KeyError, IndexError, json.JSONDecodeError) as e:
-                return "ERROR_PARSING_EXCEPTION"
-
-            # Add conversation to accumulator
-            self.temp_message_accumulator.add_user_conversation(
-                message, response_text)
-
-            return response_text
 
     def cleanup_upload_workers(self):
         """Delegate to UploadManager for cleanup."""

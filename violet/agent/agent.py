@@ -1192,7 +1192,6 @@ class Agent(BaseAgent):
                 except Exception as e:
                     self.logger.info(
                         f"Error in extracting the topic from the screenshots: {e}")
-                    pass
 
             step_response = self.inner_step(
                 first_input_messge=first_input_message,

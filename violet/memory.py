@@ -211,9 +211,8 @@ class Memory:
             memory_agent.add("John likes pizza")
             memory_agent.add("Meeting at 3pm", metadata={"type": "appointment"})
         """
-        response = self._agent.send_message(
+        response = self._agent.add_memory(
             message=content,
-            memorizing=True,
             force_absorb_content=True,
             **kwargs
         )
@@ -234,7 +233,7 @@ class Memory:
             response = memory_agent.chat("What does John like?")
             # Returns: "According to my memory, John likes pizza."
         """
-        response = self._agent.send_message(
+        response = self._agent.chat(
             message=message,
             memorizing=False,  # Chat mode, not memorizing by default
             **kwargs

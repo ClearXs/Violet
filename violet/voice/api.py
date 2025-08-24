@@ -165,6 +165,11 @@ async def setup():
         **{"module": "voice", "status": "successful"})
 
 
+async def shutdown_gracefully():
+    global tts_pipeline
+    tts_pipeline.close()
+
+
 class TTS_Request(BaseModel):
     text: str = None
     text_lang: str = None

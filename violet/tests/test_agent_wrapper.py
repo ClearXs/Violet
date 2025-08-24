@@ -20,9 +20,8 @@ def agent_wrapper():
 
 @pytest.mark.asyncio
 async def test_initial(agent_wrapper):
-    agent_wrapper.send_message(
+    agent_wrapper.add_memory(
         message="peter likes computer-games",
-        memorizing=True,
         force_absorb_content=True)
 
     assert agent_wrapper is not None
@@ -33,10 +32,7 @@ async def test_query_memory(agent_wrapper):
 
     start_time = datetime.now().timestamp()
 
-    output = agent_wrapper.send_message(
-        message="peter like what?",
-        memorizing=False,
-        force_absorb_content=True)
+    output = agent_wrapper.chat(message="peter like what?")
 
     end_time = datetime.now().timestamp()
     duration = end_time - start_time
