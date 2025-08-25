@@ -33,7 +33,7 @@ from violet.helpers.message_helpers import prepare_input_message_create
 from violet.interface import AgentInterface
 from violet.llm_api.helpers import calculate_summarizer_cutoff, get_token_counts_for_messages, is_context_overflow_error
 from violet.llm_api.llm_api_tools import create
-from violet.utils import num_tokens_from_functions, num_tokens_from_messages
+from violet.utils.utils import num_tokens_from_functions, num_tokens_from_messages
 from violet.memory import summarize_messages
 from violet.orm import User
 from violet.orm.enums import ToolType
@@ -67,7 +67,7 @@ from violet.settings import summarizer_settings
 from violet.llm_api.embeddings import embedding_model
 from violet.system import get_contine_chaining, get_token_limit_warning, package_function_response, package_summarize_message, package_user_message
 from violet.llm_api.llm_client import LLMClient
-from violet.utils import (
+from violet.utils.utils import (
     count_tokens,
     get_friendly_error_msg,
     get_tool_call_id,

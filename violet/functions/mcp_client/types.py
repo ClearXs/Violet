@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from mcp import Tool
 from pydantic import BaseModel, Field
 
-from violet.utils import get_logger
+from violet.utils.utils import get_logger
 
 # MCP Authentication Constants
 MCP_AUTH_HEADER_AUTHORIZATION = "Authorization"

@@ -7,7 +7,7 @@ import requests
 from violet.constants import MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE
 from violet.llm_api.llm_api_tools import create
 from violet.schemas.message import Message
-from violet.utils import json_dumps, json_loads
+from violet.utils.utils import json_dumps, json_loads
 
 
 def message_chatgpt(self, message: str):

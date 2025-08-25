@@ -7,7 +7,11 @@ import pytz
 import base64
 import threading
 from datetime import datetime
-from violet.utils import parse_json
+from violet.llm_api.llm_client import LLMClient
+from violet.schemas.enums import MessageRole
+from violet.schemas.message import Message
+from violet.schemas.violet_message_content import MessageContentType, TextContent
+from violet.utils.utils import parse_json
 from PIL import Image
 import logging
 from .app_utils import encode_image
@@ -262,10 +266,27 @@ class AgentWrapper:
         # Pass URI tracking to accumulator
         self.temp_message_accumulator.uri_to_create_time = self.uri_to_create_time
 
-    def chat(self,
-             message=None,
-             image_uris=None,
-             display_intermediate_message=None):
+    def chat(self, message=None):
+
+        personas = self.client.server.persona_manager.personas
+
+        messages = [Message(role=MessageRole(MessageRole.assistant), content=[TextContent(text=personas.character_setting, type=MessageContentType.text)]),
+                    Message(role=MessageRole(MessageRole.user), content=[TextContent(text=message, type=MessageContentType.text)]),]
+
+        agent_state = self.agent_states.core_memory_agent_state
+
+        llm_client = LLMClient.create(
+            llm_config=agent_state.llm_config,
+            put_inner_thoughts_first=True,
+        )
+
+        response = llm_client.send_llm_request(messages=messages)
+        return response.choices[0].message.content
+
+    def chat_with_memory(self,
+                         message=None,
+                         image_uris=None,
+                         display_intermediate_message=None):
 
         if image_uris is not None:
             if isinstance(message, str):

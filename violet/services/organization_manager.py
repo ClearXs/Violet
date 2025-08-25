@@ -3,7 +3,7 @@ from typing import List, Optional
 from violet.orm.errors import NoResultFound
 from violet.orm.organization import Organization as OrganizationModel
 from violet.schemas.organization import Organization as PydanticOrganization
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 
 
 class OrganizationManager:

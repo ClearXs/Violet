@@ -11,7 +11,7 @@ from violet.orm.errors import NoResultFound
 from violet.orm.knowledge_vault import KnowledgeVaultItem
 from violet.schemas.user import User as PydanticUser
 from violet.schemas.knowledge_vault import KnowledgeVaultItem as PydanticKnowledgeVaultItem
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func, text
 from violet.schemas.agent import AgentState
@@ -430,7 +430,7 @@ class KnowledgeVaultManager:
 
         # Ensure ID is set before model_dump
         if not knowledge_vault_item.id:
-            from violet.utils import generate_unique_short_id
+            from violet.utils.utils import generate_unique_short_id
             knowledge_vault_item.id = generate_unique_short_id(
                 self.session_maker, KnowledgeVaultItem, "kv")
 

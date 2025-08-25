@@ -12,7 +12,7 @@ from violet.schemas.memory import Memory
 from violet.schemas.message import Message
 from violet.schemas.violet_message_content import TextContent
 from violet.settings import summarizer_settings
-from violet.utils import count_tokens, printd
+from violet.utils.utils import count_tokens, printd
 
 from violet.agent import AgentWrapper
 
@@ -233,7 +233,7 @@ class Memory:
             response = memory_agent.chat("What does John like?")
             # Returns: "According to my memory, John likes pizza."
         """
-        response = self._agent.chat(
+        response = self._agent.chat_with_memory(
             message=message,
             memorizing=False,  # Chat mode, not memorizing by default
             **kwargs

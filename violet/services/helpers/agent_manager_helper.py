@@ -15,7 +15,7 @@ from violet.schemas.message import Message, MessageCreate
 from violet.schemas.tool_rule import ToolRule
 from violet.schemas.user import User
 from violet.system import get_initial_boot_messages, get_login_event
-from violet.utils import get_local_time
+from violet.utils.utils import get_local_time
 
 
 # Static methods

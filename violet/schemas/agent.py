@@ -14,7 +14,7 @@ from violet.schemas.message import Message, MessageCreate
 from violet.schemas.openai.chat_completion_response import UsageStatistics
 from violet.schemas.tool import Tool
 from violet.schemas.tool_rule import ToolRule
-from violet.utils import create_random_username
+from violet.utils.utils import create_random_username
 from violet.helpers import ToolRulesSolver
 
 

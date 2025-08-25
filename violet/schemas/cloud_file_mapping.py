@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import Field
 
 from violet.schemas.violet_base import VioletBase
-from violet.utils import get_utc_time
+from violet.utils.utils import get_utc_time
 
 
 class CloudFileMappingBase(VioletBase):

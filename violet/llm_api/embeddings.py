@@ -7,7 +7,7 @@ import tiktoken
 from violet.constants import EMBEDDING_TO_TOKENIZER_DEFAULT, EMBEDDING_TO_TOKENIZER_MAP, MAX_EMBEDDING_DIM
 from violet.llama import load_embedding_model
 from violet.schemas.embedding_config import EmbeddingConfig
-from violet.utils import is_valid_url, printd
+from violet.utils.utils import is_valid_url, printd
 
 
 def parse_and_chunk_text(text: str, chunk_size: int) -> List[str]:

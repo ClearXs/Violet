@@ -2,11 +2,12 @@ import os
 import traceback
 import json
 from fastapi.concurrency import asynccontextmanager
+from fastapi.params import Query
 import yaml
 from pathlib import Path
 from datetime import datetime
-from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException
+from typing import List, Optional, Dict, Any, Tuple
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -15,9 +16,17 @@ import queue
 from violet.agent.agent_wrapper import AgentWrapper
 from violet.config import VioletConfig
 from violet.log import get_logger
-from violet.utils import log_telemetry
-from violet.voice.api import router as VoiceRouter
+from violet.services.persona_manager import PersonaManager
+from violet.utils.utils import log_telemetry
+from violet.voice.api import TTS_Request, router as VoiceRouter
 from violet.voice.api import setup as voice_setup, shutdown_gracefully as voice_shutdown
+from violet.voice.api import tts_handle
+from violet.voice.api import pack_audio
+from violet.voice.api import wave_header_chunk
+
+from violet.server.file import router as FileRouter
+from violet.server.persona import router as PersonaRouter
+from violet.voice.whisper.whisper import Whisper
 
 """
 VOICE RECORDING STRATEGY & ARCHITECTURE:
@@ -61,6 +70,7 @@ logger = get_logger(__name__)
 
 # Global agent instance
 agent = None
+persona_manager = PersonaManager()
 
 
 @asynccontextmanager
@@ -105,6 +115,8 @@ app = FastAPI(title="Violet API",
               lifespan=lifespan)
 
 app.include_router(VoiceRouter)
+app.include_router(FileRouter)
+app.include_router(PersonaRouter)
 
 # Add CORS middleware
 app.add_middleware(
@@ -392,7 +404,7 @@ async def send_message_endpoint(request: MessageRequest):
                 )
 
             else:
-                return agent.chat(
+                return agent.chat_with_memory(
                     message=request.message,
                     image_uris=request.image_uris,
                 )
@@ -483,7 +495,7 @@ async def send_streaming_message_endpoint(request: MessageRequest):
                             )
 
                         else:
-                            return agent.chat(
+                            return agent.chat_with_memory(
                                 message=request.message,
                                 image_uris=request.image_uris,
                                 display_intermediate_message=display_intermediate_message
@@ -1428,6 +1440,88 @@ async def trigger_reflexion(request: ReflexionRequest):
         print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500, detail=f"Reflexion process failed: {str(e)}")
+
+
+@app.get("/pipeline_chat")
+async def pipeline_chat(
+        text: str = Query(),
+        lang: str = Query('zh'),
+        streaming_mode: bool = Query(True),
+        media_type: str = Query("wav")):
+
+    async def _chat(text):
+        return agent.chat(message=text)
+
+    try:
+        output = await _chat(text)
+
+        tts_request = TTS_Request()
+        tts_request.text = output
+        tts_request.text_lang = lang
+
+        personas = persona_manager.personas
+        ref_audio_path = personas.get_absolute_for(personas.config.ref_audio)
+        tts_request.ref_audio_path = ref_audio_path
+        tts_request.prompt_lang = personas.config.prompt_lang
+
+        tts_request.streaming_mode = streaming_mode
+
+        tts_request.media_type = media_type
+
+        return await tts_handle({"text": output, **tts_request.model_dump()})
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Pipeline processing failed: {str(e)}")
+
+
+@app.post("/pipeline")
+async def pipeline(
+        audio_file: UploadFile = File(...),
+        streaming_mode: bool = Query(True),
+        media_type: str = Query("wav")):
+
+    async def _asr() -> Tuple[str, str]:
+        config = VioletConfig.get_config()
+        file_storage_path = config.file_storage_path
+
+        filename = audio_file.filename
+        data = await audio_file.read()
+        file_path = os.path.join(file_storage_path, filename)
+        with open(file_path, "wb") as f:
+            f.write(data)
+
+        whisper_handler = Whisper()
+
+        try:
+            return whisper_handler.rec(file_path)
+        except Exception as e:
+            logger.error(f"Error in ASR process: {str(e)}")
+            raise e
+
+    async def _chat(text):
+        return agent.chat(message=text)
+
+    try:
+        text, lang = await _asr()
+        output = await _chat(text)
+
+        tts_request = TTS_Request()
+        tts_request.text = output
+        tts_request.text_lang = lang
+
+        personas = persona_manager.personas
+        ref_audio_path = personas.get_absolute_for(personas.config.ref_audio)
+        tts_request.ref_audio_path = ref_audio_path
+        tts_request.prompt_lang = personas.config.prompt_lang
+
+        tts_request.streaming_mode = streaming_mode
+
+        tts_request.media_type = media_type
+
+        return await tts_handle({"text": output, **tts_request.model_dump()})
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Pipeline processing failed: {str(e)}")
 
 
 def _run_reflexion_process(agent):

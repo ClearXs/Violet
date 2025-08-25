@@ -11,7 +11,7 @@ from violet.schemas.sandbox_config import LocalSandboxConfig
 from violet.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
 from violet.schemas.sandbox_config import SandboxConfigCreate, SandboxConfigUpdate, SandboxType
 from violet.schemas.user import User as PydanticUser
-from violet.utils import enforce_types, printd
+from violet.utils.utils import enforce_types, printd
 
 logger = get_logger(__name__)
 

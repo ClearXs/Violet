@@ -94,7 +94,7 @@ RESP:
 from pydantic import BaseModel
 from violet.config import VioletConfig
 from violet.log import get_logger
-from violet.utils import log_telemetry
+from violet.utils.utils import log_telemetry
 from violet.voice.TTS_infer_pack.text_segmentation_method import get_method_names as get_cut_method_names
 from violet.voice.TTS_infer_pack.TTS import TTS, TTS_Config
 from violet.i18n.i18n import I18nAuto
@@ -529,7 +529,7 @@ async def asr_endpoint(audio_file: UploadFile = File(...)):
         f.write(data)
 
     try:
-        text = whisper_handler.rec(file_path)
-        return JSONResponse(status_code=200, content={"data": text})
+        text, language = whisper_handler.rec(file_path)
+        return JSONResponse(status_code=200, content={"data": {"text": text, "language": language}})
     except Exception as e:
         return JSONResponse(status_code=500, content={"message": "ASR failed", "Exception": str(e)})

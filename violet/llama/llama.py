@@ -6,7 +6,7 @@ from violet.log import get_logger
 from llama_cpp.llama_chat_format import MiniCPMv26ChatHandler, Qwen25VLChatHandler, Llava15ChatHandler
 
 
-from violet.utils import log_telemetry
+from violet.utils.utils import log_telemetry
 
 logger = get_logger(__name__)
 

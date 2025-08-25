@@ -17,7 +17,7 @@ from violet.orm.tool import Tool as ToolModel
 from violet.schemas.tool import Tool as PydanticTool
 from violet.schemas.tool import ToolUpdate
 from violet.schemas.user import User as PydanticUser
-from violet.utils import enforce_types, printd
+from violet.utils.utils import enforce_types, printd
 
 
 class ToolManager:

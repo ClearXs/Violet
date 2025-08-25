@@ -15,7 +15,7 @@ from violet.schemas.resource_memory import (
     ResourceMemoryItemUpdate
 )
 from violet.schemas.agent import AgentState
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func, text
 from violet.services.utils import build_query, update_timezone
@@ -368,7 +368,7 @@ class ResourceMemoryManager:
 
         # Ensure ID is set before model_dump
         if not item_data.id:
-            from violet.utils import generate_unique_short_id
+            from violet.utils.utils import generate_unique_short_id
             item_data.id = generate_unique_short_id(
                 self.session_maker, ResourceMemoryItem, "res")
 

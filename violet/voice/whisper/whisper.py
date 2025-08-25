@@ -1,15 +1,28 @@
+import os
+import threading
+from typing import Tuple
 from faster_whisper import WhisperModel
 from violet.config import VioletConfig
 from violet.log import get_logger
-from violet.utils import log_telemetry
-
-import pathlib
-
+from violet.utils.utils import log_telemetry
 
 logger = get_logger(__name__)
 
-
+model_lock = threading.Lock()
 local_whisper_model = None
+
+
+def _load_whisper_model(model_path):
+
+    global local_whisper_model
+
+    with model_lock:
+
+        if local_whisper_model is None:
+            local_whisper_model = WhisperModel(str(model_path),
+                                               device="cpu", compute_type="int8")
+
+        return local_whisper_model
 
 
 class Whisper:
@@ -17,36 +30,29 @@ class Whisper:
     model: WhisperModel = None
 
     def __init__(self):
-        global local_whisper_model
-
         if local_whisper_model is not None:
             self.model = local_whisper_model
         else:
             # load local model
             config = VioletConfig.get_config()
             model_storage_path = config.model_storage_path
+            whisper_model_path = os.path.join(model_storage_path, 'whisper')
 
-            whisper_model_path = pathlib.Path(model_storage_path) / 'whisper'
-
-            if whisper_model_path.exists() is False:
+            if not os.path.exists(whisper_model_path):
                 # download whisper model from huggingface
                 log_telemetry(logger=logger, event='download_model',
-                              **{"model": "whisper tiny model", "path": str(whisper_model_path)})
+                              **{"model": "whisper tiny model", "path": whisper_model_path})
 
                 import faster_whisper
-
-                faster_whisper.download("tiny", str(whisper_model_path))
+                faster_whisper.download("tiny", whisper_model_path)
 
             # load whisper model
             log_telemetry(logger=logger, event='load_model',
-                          **{"model": "whisper tiny model", "path": str(whisper_model_path)})
+                          **{"model": "whisper tiny model", "path": whisper_model_path})
 
-            self.model = WhisperModel(str(whisper_model_path),
-                                      device="cpu", compute_type="int8")
+            self.model = _load_whisper_model(whisper_model_path)
 
-            local_whisper_model = self.model
-
-    def rec(self, audio_path: str) -> str:
+    def rec(self, audio_path: str) -> Tuple[str, str]:
         """
         Specify audio path use whisper model proceed ASR (Automatic Speech Recognition)
 
@@ -72,4 +78,4 @@ class Whisper:
         for segment in segments:
             texts.append(segment.text)
 
-        return "".join(texts)
+        return "".join(texts), info.language

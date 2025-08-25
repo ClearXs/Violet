@@ -9,7 +9,7 @@ from violet.orm.step import Step as StepModel
 from violet.schemas.openai.chat_completion_response import UsageStatistics
 from violet.schemas.step import Step as PydanticStep
 from violet.schemas.user import User as PydanticUser
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 
 
 class StepManager:

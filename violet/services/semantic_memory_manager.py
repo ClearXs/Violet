@@ -8,7 +8,7 @@ from rank_bm25 import BM25Okapi
 from rapidfuzz import fuzz
 from sqlalchemy import select, func, text
 from pydantic import BaseModel
-from violet.utils import enforce_types, generate_short_id, generate_unique_short_id
+from violet.utils.utils import enforce_types, generate_short_id, generate_unique_short_id
 from violet.schemas.semantic_memory import (
     SemanticMemoryItem as PydanticSemanticMemoryItem,
     SemanticMemoryItemUpdate

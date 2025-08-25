@@ -8,7 +8,7 @@ import asyncio
 
 from violet.constants import CLI_WARNING_PREFIX, ASSISTANT_MESSAGE_CLI_SYMBOL, INNER_THOUGHTS_CLI_SYMBOL
 from violet.schemas.message import Message
-from violet.utils import json_loads, printd, is_utc_datetime
+from violet.utils.utils import json_loads, printd, is_utc_datetime
 
 init(autoreset=True)
 

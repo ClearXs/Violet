@@ -12,3 +12,4 @@ from violet.orm.step import Step
 from violet.orm.tool import Tool
 from violet.orm.tools_agents import ToolsAgents
 from violet.orm.user import User
+from violet.orm.personas import Persona

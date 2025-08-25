@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from violet.schemas.enums import MessageStreamStatus
 from violet.schemas.violet_message import VioletMessage, VioletMessageUnion
 from violet.schemas.usage import VioletUsageStatistics
-from violet.utils import json_dumps
+from violet.utils.utils import json_dumps
 
 # TODO: consider moving into own file
 

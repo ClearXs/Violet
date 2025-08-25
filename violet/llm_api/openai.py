@@ -11,7 +11,7 @@ from violet.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from violet.errors import LLMError
 from violet.llm_api.helpers import add_inner_thoughts_to_functions, convert_to_structured_output, make_post_request
 from violet.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
-from violet.utils import num_tokens_from_functions, num_tokens_from_messages
+from violet.utils.utils import num_tokens_from_functions, num_tokens_from_messages
 from violet.schemas.llm_config import LLMConfig
 from violet.schemas.message import Message as _Message
 from violet.schemas.message import MessageRole as _MessageRole
@@ -28,7 +28,7 @@ from violet.schemas.openai.chat_completion_response import (
     UsageStatistics,
 )
 from violet.schemas.openai.embedding_response import EmbeddingResponse
-from violet.utils import get_tool_call_id, smart_urljoin
+from violet.utils.utils import get_tool_call_id, smart_urljoin
 
 OPENAI_SSE_DONE = "[DONE]"
 
@@ -37,7 +37,7 @@ def openai_get_model_list(
     url: str, api_key: Union[str, None], fix_url: Optional[bool] = False, extra_params: Optional[dict] = None
 ) -> dict:
     """https://platform.openai.com/docs/api-reference/models/list"""
-    from violet.utils import printd
+    from violet.utils.utils import printd
 
     # In some cases we may want to double-check the URL and do basic correction, eg:
     # In Violet config the address for vLLM is w/o a /v1 suffix for simplicity
@@ -397,7 +397,7 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionCh
             # Inspect for errors before iterating (see https://github.com/florimondmanca/httpx-sse/pull/12)
             if not event_source.response.is_success:
                 # handle errors
-                from violet.utils import printd
+                from violet.utils.utils import printd
 
                 printd("Caught error before iterating SSE request:",
                        vars(event_source.response))
@@ -472,7 +472,7 @@ def openai_chat_completions_request_stream(
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
 ) -> Generator[ChatCompletionChunkResponse, None, None]:
-    from violet.utils import printd
+    from violet.utils.utils import printd
 
     url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json",
@@ -549,7 +549,7 @@ def openai_chat_completions_request(
 
     https://platform.openai.com/docs/guides/text-generation?lang=curl
     """
-    from violet.utils import printd
+    from violet.utils.utils import printd
 
     url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json",

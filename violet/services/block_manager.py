@@ -7,7 +7,7 @@ from violet.schemas.block import Block
 from violet.schemas.block import Block as PydanticBlock
 from violet.schemas.block import BlockUpdate, Human, Persona
 from violet.schemas.user import User as PydanticUser
-from violet.utils import enforce_types, list_human_files, list_persona_files
+from violet.utils.utils import enforce_types, list_human_files, list_persona_files
 
 
 class BlockManager:

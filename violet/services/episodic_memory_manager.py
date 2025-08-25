@@ -11,7 +11,7 @@ from violet.orm.episodic_memory import EpisodicEvent
 from violet.schemas.user import User as PydanticUser
 from sqlalchemy import Select, func, literal, select, union_all, text
 from violet.schemas.episodic_memory import EpisodicEvent as PydanticEpisodicEvent
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from rapidfuzz import fuzz
@@ -172,7 +172,7 @@ class EpisodicMemoryManager:
 
         # Ensure ID is set before model_dump
         if not episodic_memory.id:
-            from violet.utils import generate_unique_short_id
+            from violet.utils.utils import generate_unique_short_id
             episodic_memory.id = generate_unique_short_id(
                 self.session_maker, EpisodicEvent, "ep")
 

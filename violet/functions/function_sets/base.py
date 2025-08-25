@@ -1,7 +1,7 @@
 from typing import List, Optional
 from violet.agent import Agent, AgentState
 from datetime import datetime
-from violet.utils import convert_timezone_to_utc
+from violet.utils.utils import convert_timezone_to_utc
 
 
 def send_message(self: "Agent",  agent_state: "AgentState", message: str, topic: str = None) -> Optional[str]:
@@ -53,7 +53,7 @@ def conversation_search(self: "Agent", query: str, page: Optional[int] = 0) -> O
     import math
 
     from violet.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    from violet.utils import json_dumps
+    from violet.utils.utils import json_dumps
 
     if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
         page = 0

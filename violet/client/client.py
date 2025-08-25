@@ -8,7 +8,7 @@ from typing import Callable, Dict,  List, Optional, Union
 
 import requests
 
-import violet.utils
+import violet.utils.utils
 from violet.constants import META_MEMORY_TOOLS, BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA, FUNCTION_RETURN_CHAR_LIMIT
 from violet.functions.functions import parse_source_code
 from violet.orm.errors import NoResultFound
@@ -376,7 +376,7 @@ class LocalClient(Client):
         from violet.server.server import SyncServer
 
         # set logging levels
-        violet.utils.DEBUG = debug
+        violet.utils.utils.DEBUG = debug
         logging.getLogger().setLevel(logging.CRITICAL)
 
         # save default model config

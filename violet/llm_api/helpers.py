@@ -10,7 +10,7 @@ from violet.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from violet.schemas.message import Message
 from violet.schemas.openai.chat_completion_response import ChatCompletionResponse, Choice
 from violet.settings import summarizer_settings
-from violet.utils import count_tokens, json_dumps, printd
+from violet.utils.utils import count_tokens, json_dumps, printd
 from violet.schemas.enums import MessageRole
 
 
@@ -371,7 +371,7 @@ def get_token_counts_for_messages(in_context_messages: List[Message]) -> List[in
 
 def is_context_overflow_error(exception: Union[requests.exceptions.RequestException, Exception]) -> bool:
     """Checks if an exception is due to context overflow (based on common OpenAI response messages)"""
-    from violet.utils import printd
+    from violet.utils.utils import printd
 
     match_string = OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 

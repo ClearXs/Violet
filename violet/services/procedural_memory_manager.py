@@ -14,7 +14,7 @@ from violet.schemas.procedural_memory import (
     ProceduralMemoryItem as PydanticProceduralMemoryItem,
     ProceduralMemoryItemUpdate
 )
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 
@@ -416,7 +416,7 @@ class ProceduralMemoryManager:
 
         # Ensure ID is set before model_dump
         if not item_data.id:
-            from violet.utils import generate_unique_short_id
+            from violet.utils.utils import generate_unique_short_id
             item_data.id = generate_unique_short_id(
                 self.session_maker, ProceduralMemoryItem, "proc")
 

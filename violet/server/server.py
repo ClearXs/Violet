@@ -1,4 +1,5 @@
 # inspecting tools
+from violet.services.persona_manager import PersonaManager
 from violet.settings import model_settings, settings, tool_settings
 from violet.config import VioletConfig
 from sqlalchemy.orm import sessionmaker
@@ -70,7 +71,7 @@ from violet.services.step_manager import StepManager
 from violet.services.tool_execution_sandbox import ToolExecutionSandbox
 from violet.services.tool_manager import ToolManager
 from violet.services.user_manager import UserManager
-from violet.utils import get_friendly_error_msg, get_utc_time, json_dumps, json_loads
+from violet.utils.utils import get_friendly_error_msg, get_utc_time, json_dumps, json_loads
 
 logger = get_logger(__name__)
 
@@ -422,6 +423,10 @@ class SyncServer(Server):
             #         sandbox_config_id=sandbox_config.id,
             #         actor=self.default_user,
             #     )
+
+        # Persona Manager
+        self.persona_manager = PersonaManager()
+        self.persona_manager.create_default_persona(actor=self.default_user)
 
         # collect providers (always has Violet as a default)
         self._enabled_providers: List[Provider] = []

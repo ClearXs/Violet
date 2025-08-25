@@ -20,7 +20,7 @@ from violet.schemas.user import User
 from violet.services.sandbox_config_manager import SandboxConfigManager
 from violet.services.tool_manager import ToolManager
 from violet.settings import tool_settings
-from violet.utils import get_friendly_error_msg
+from violet.utils.utils import get_friendly_error_msg
 
 logger = get_logger(__name__)
 

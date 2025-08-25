@@ -9,7 +9,7 @@ from .constants import (
     INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
     MESSAGE_SUMMARY_WARNING_STR,
 )
-from .utils import get_local_time, json_dumps
+from .utils.utils import get_local_time, json_dumps
 
 
 def get_initial_boot_messages(version="startup"):

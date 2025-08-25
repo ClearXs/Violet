@@ -12,7 +12,7 @@ from violet.llm_api.openai import (
     openai_chat_completions_request,
 )
 from violet.constants import INNER_THOUGHTS_KWARG
-from violet.utils import num_tokens_from_functions, num_tokens_from_messages
+from violet.utils.utils import num_tokens_from_functions, num_tokens_from_messages
 from violet.schemas.llm_config import LLMConfig
 from violet.schemas.message import Message
 from violet.schemas.openai.chat_completion_response import ChatCompletionResponse
@@ -108,7 +108,7 @@ def create(
     get_input_data_for_debugging: bool = False,
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
-    from violet.utils import printd
+    from violet.utils.utils import printd
 
     # Count the tokens first, if there's an overflow exit early by throwing an error up the stack
     # NOTE: we want to include a specific substring in the error message to trigger summarization

@@ -41,7 +41,7 @@ from violet.schemas.violet_message_content import (
     get_violet_message_content_union_str_json_schema,
 )
 from violet.system import unpack_message
-from violet.utils import parse_json
+from violet.utils.utils import parse_json
 
 
 def add_inner_thoughts_to_tool_call(

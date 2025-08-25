@@ -1,6 +1,6 @@
 import json
 from violet.agent import Agent
-from violet.utils import parse_json
+from violet.utils.utils import parse_json
 
 
 class ResourceMemoryAgent(Agent):

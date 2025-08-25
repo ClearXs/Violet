@@ -1216,7 +1216,7 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
-        from violet.utils import printd
+        from violet.utils.utils import printd
 
         printd(f"Warning: model not found. Using cl100k_base encoding.")
         encoding = tiktoken.get_encoding("cl100k_base")
@@ -1357,7 +1357,7 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
         # print("Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
         return num_tokens_from_messages(messages, model="gpt-4-0613")
     else:
-        from violet.utils import printd
+        from violet.utils.utils import printd
 
         printd(
             f"num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."

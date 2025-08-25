@@ -4,7 +4,7 @@ from violet.orm.provider import Provider as ProviderModel
 from violet.schemas.providers import Provider as PydanticProvider
 from violet.schemas.providers import ProviderUpdate
 from violet.schemas.user import User as PydanticUser
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 
 
 class ProviderManager:

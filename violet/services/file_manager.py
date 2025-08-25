@@ -5,7 +5,7 @@ from datetime import datetime
 from violet.orm.errors import NoResultFound
 from violet.orm.file import FileMetadata as FileMetadataModel
 from violet.schemas.file import FileMetadata as PydanticFileMetadata
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 
 
 class FileManager:

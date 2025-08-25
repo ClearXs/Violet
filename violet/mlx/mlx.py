@@ -4,7 +4,7 @@ import mlx.nn as nn
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
 from violet.log import get_logger
-from violet.utils import log_telemetry
+from violet.utils.utils import log_telemetry
 
 local_foundation_model = None
 local_processor = None

@@ -56,6 +56,8 @@ class VioletConfig:
     model_storage_path = VIOLET_DIR + "/models"
     # file storage path
     file_storage_path = VIOLET_DIR + "/files"
+    # image storage path
+    image_storage_path = VIOLET_DIR + '/images'
     # persona assert folder path
     persona_path = VIOLET_DIR + '/personas'
     prompts_path = VIOLET_DIR + '/prompts'
@@ -100,7 +102,7 @@ class VioletConfig:
     @classmethod
     def load(cls) -> "VioletConfig":
         # avoid circular import
-        from violet.utils import printd
+        from violet.utils.utils import printd
 
         config = configparser.ConfigParser()
 

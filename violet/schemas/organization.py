@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import Field
 
 from violet.schemas.violet_base import VioletBase
-from violet.utils import create_random_username, get_utc_time
+from violet.utils.utils import create_random_username, get_utc_time
 
 
 class OrganizationBase(VioletBase):

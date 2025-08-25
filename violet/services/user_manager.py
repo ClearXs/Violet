@@ -6,7 +6,7 @@ from violet.orm.user import User as UserModel
 from violet.schemas.user import User as PydanticUser
 from violet.schemas.user import UserUpdate
 from violet.services.organization_manager import OrganizationManager
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 
 
 class UserManager:

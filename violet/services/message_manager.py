@@ -7,7 +7,7 @@ from violet.schemas.enums import MessageRole
 from violet.schemas.message import Message as PydanticMessage
 from violet.schemas.message import MessageUpdate
 from violet.schemas.user import User as PydanticUser
-from violet.utils import enforce_types
+from violet.utils.utils import enforce_types
 from violet.services.utils import update_timezone
 
 

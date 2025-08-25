@@ -5,7 +5,7 @@ from pydantic import Field, field_validator
 from violet.constants import MAX_EMBEDDING_DIM
 
 from violet.schemas.violet_base import VioletBase
-from violet.utils import get_utc_time
+from violet.utils.utils import get_utc_time
 from violet.schemas.embedding_config import EmbeddingConfig
 
 

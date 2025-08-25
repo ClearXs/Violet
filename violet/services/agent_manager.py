@@ -39,7 +39,7 @@ from violet.services.helpers.agent_manager_helper import (
 from violet.services.message_manager import MessageManager
 from violet.services.tool_manager import ToolManager
 from violet.settings import settings
-from violet.utils import enforce_types, get_utc_time, united_diff
+from violet.utils.utils import enforce_types, get_utc_time, united_diff
 
 logger = get_logger(__name__)
 
