@@ -1,5 +1,7 @@
 'use client';
 
+import Settings from "@/features/settings/settings";
+
 export default function SettingsPage() {
-  return <>settings</>;
+  return <div className="h-full w-full"><Settings /></div>
 }

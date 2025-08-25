@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   rewrites: async () => {
     return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:47283/:path*', // Proxy to Backend
+      },
     ];
   },
 };
