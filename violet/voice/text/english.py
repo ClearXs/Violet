@@ -1,26 +1,24 @@
-from nltk import pos_tag
+from g2p_en import G2p
 import pickle
 import os
 import re
 import wordsegment
-from g2p_en import G2p
+from nltk.tokenize import TweetTokenizer
 
 from violet.voice.text.symbols import punctuation
-
 from violet.voice.text.symbols2 import symbols
 
 from builtins import str as unicode
 from violet.voice.text.en_normalization.expend import normalize
-from nltk.tokenize import TweetTokenizer
+from violet.voice.text import nltk_path
 
 word_tokenize = TweetTokenizer().tokenize
 
-current_file_path = os.path.dirname(__file__)
-CMU_DICT_PATH = os.path.join(current_file_path, "cmudict.rep")
-CMU_DICT_FAST_PATH = os.path.join(current_file_path, "cmudict-fast.rep")
-CMU_DICT_HOT_PATH = os.path.join(current_file_path, "engdict-hot.rep")
-CACHE_PATH = os.path.join(current_file_path, "engdict_cache.pickle")
-NAMECACHE_PATH = os.path.join(current_file_path, "namedict_cache.pickle")
+CMU_DICT_PATH = os.path.join(nltk_path, "cmudict.rep")
+CMU_DICT_FAST_PATH = os.path.join(nltk_path, "cmudict-fast.rep")
+CMU_DICT_HOT_PATH = os.path.join(nltk_path, "engdict-hot.rep")
+CACHE_PATH = os.path.join(nltk_path, "engdict_cache.pickle")
+NAMECACHE_PATH = os.path.join(nltk_path, "namedict_cache.pickle")
 
 
 # 适配中文及 g2p_en 标点
@@ -246,6 +244,7 @@ def text_normalize(text):
 
 
 class en_G2p(G2p):
+
     def __init__(self):
         super().__init__()
         # 分词初始化
@@ -271,6 +270,7 @@ class en_G2p(G2p):
     def __call__(self, text):
         # tokenization
         words = word_tokenize(text)
+        from nltk import pos_tag
         tokens = pos_tag(words)  # tuples of (word, tag)
 
         # steps

@@ -1,8 +1,14 @@
 'use client';
 
 import '@/index.css';
+import '@/global.css';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Toaster as SonnerToast } from '@/components/ui/sonner';
+import { LayoutProvider } from '@/context/layout-context';
+import { Progress } from '@/components/ui/progress';
+import NextIntlProvider from '@/context/next-int-context';
+import { FontProvider } from '@/context/font-context';
 
 export default function RootLayout({
   children,
@@ -10,6 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  const [initial, setInitial] = useState<boolean>(false);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -21,12 +28,26 @@ export default function RootLayout({
 
     window.addEventListener('keydown', handleKeyDown);
 
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const tm = setTimeout(() => {
+      setInitial(true);
+    }, 3000);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      tm.close();
+    };
   }, []);
 
   return (
     <html lang='en'>
-      <body>{children}</body>
+      <body>
+        <LayoutProvider>
+          <NextIntlProvider>
+            <FontProvider>{children}</FontProvider>
+          </NextIntlProvider>
+        </LayoutProvider>
+        <SonnerToast />
+      </body>
     </html>
   );
 }

@@ -21,8 +21,6 @@ from violet.utils.utils import log_telemetry
 from violet.voice.api import TTS_Request, router as VoiceRouter
 from violet.voice.api import setup as voice_setup, shutdown_gracefully as voice_shutdown
 from violet.voice.api import tts_handle
-from violet.voice.api import pack_audio
-from violet.voice.api import wave_header_chunk
 
 from violet.server.file import router as FileRouter
 from violet.server.persona import router as PersonaRouter
@@ -1445,7 +1443,6 @@ async def trigger_reflexion(request: ReflexionRequest):
 @app.get("/pipeline_chat")
 async def pipeline_chat(
         text: str = Query(),
-        lang: str = Query('zh'),
         streaming_mode: bool = Query(True),
         media_type: str = Query("wav")):
 
@@ -1457,7 +1454,7 @@ async def pipeline_chat(
 
         tts_request = TTS_Request()
         tts_request.text = output
-        tts_request.text_lang = lang
+        tts_request.text_lang = 'ja'
 
         personas = persona_manager.personas
         ref_audio_path = personas.get_absolute_for(personas.config.ref_audio)
@@ -1470,6 +1467,7 @@ async def pipeline_chat(
 
         return await tts_handle({"text": output, **tts_request.model_dump()})
     except Exception as e:
+        logger.error(f"Error in pipeline_chat endpoint: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Pipeline processing failed: {str(e)}")
 
@@ -1502,12 +1500,12 @@ async def pipeline(
         return agent.chat(message=text)
 
     try:
-        text, lang = await _asr()
+        text, _ = await _asr()
         output = await _chat(text)
 
         tts_request = TTS_Request()
         tts_request.text = output
-        tts_request.text_lang = lang
+        tts_request.text_lang = 'ja'
 
         personas = persona_manager.personas
         ref_audio_path = personas.get_absolute_for(personas.config.ref_audio)

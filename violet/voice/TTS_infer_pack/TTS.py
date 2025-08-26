@@ -296,12 +296,16 @@ class TTS_Config:
     # "auto",#多语种启动切分识别语种
     # "auto_yue",#多语种启动切分识别语种
 
-    def __init__(self, configs: Union[dict, str] = None):
-        # 设置默认配置文件路径
-        configs_base_path: str = "violet/voice/configs/"
-        os.makedirs(configs_base_path, exist_ok=True)
-        self.configs_path: str = os.path.join(
-            configs_base_path, "tts_infer.yaml")
+    def __init__(self,
+                 configs_path: str = None,
+                 configs: Union[dict, str] = None):
+
+        if configs_path:
+            self.configs_path = configs_path
+        else:
+            from violet.constants import VIOLET_DIR
+            # 设置默认配置文件路径
+            self.configs_path: str = os.path.join(VIOLET_DIR, "tts_infer.yaml")
 
         if configs in ["", None]:
             if not os.path.exists(self.configs_path):
@@ -1281,7 +1285,8 @@ class TTS:
                         ).detach()[0, 0, :]
                         audio_frag_end_idx.insert(0, 0)
                         batch_audio_fragment = [
-                            _batch_audio_fragment[audio_frag_end_idx[i - 1]                                                  : audio_frag_end_idx[i]]
+                            _batch_audio_fragment[audio_frag_end_idx[i - 1]
+                                : audio_frag_end_idx[i]]
                             for i in range(1, len(audio_frag_end_idx))
                         ]
                     else:

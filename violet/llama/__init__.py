@@ -15,7 +15,7 @@ local_foundation_model = None
 local_embedding_model = None
 
 
-def load_model(llm_config: LLMConfig):
+def load_model(llm_config: LLMConfig, enforce_load: bool = False):
     global model_lock
     global local_foundation_model
 
@@ -24,7 +24,7 @@ def load_model(llm_config: LLMConfig):
 
     with model_lock:
 
-        if local_foundation_model is None:
+        if local_foundation_model is None or enforce_load:
             model = llm_config.model
 
             # modulate model and build model path
@@ -63,7 +63,7 @@ def load_model(llm_config: LLMConfig):
         return local_foundation_model
 
 
-def load_embedding_model(embedding_config: EmbeddingConfig):
+def load_embedding_model(embedding_config: EmbeddingConfig, enforce_load: bool = False):
     import os
     global model_lock
     global local_embedding_model
@@ -73,7 +73,7 @@ def load_embedding_model(embedding_config: EmbeddingConfig):
 
     with model_lock:
 
-        if local_embedding_model is None:
+        if local_embedding_model is None or enforce_load:
             embedding_model_path = None
 
             if embedding_model.endswith(".gguf"):

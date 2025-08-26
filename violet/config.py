@@ -45,6 +45,11 @@ class VioletConfig:
     config_path: str = os.getenv(
         "VIOLET_CONFIG_PATH") or os.path.join(VIOLET_DIR, "config")
 
+    # config path
+    config_path = os.path.join(config_path, "config.yaml")
+    embedding_config_path = os.path.join(config_path, "embedding.yaml")
+    tts_config_path = os.path.join(config_path, "tts_infer.yaml")
+
     # preset
     preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
 
@@ -201,12 +206,10 @@ class VioletConfig:
 
         import yaml
 
-        llm_config_path = os.path.join(self.base_path, 'config.yaml')
-
-        if os.path.exists(llm_config_path) is False:
+        if os.path.exists(self.config_path) is False:
             llm_config = LLMConfig.default_config('gpt-4')
 
-            with open(llm_config_path, "w", encoding="utf-8") as f:
+            with open(self.config_path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(
                     llm_config.to_dict(),
                     f,
@@ -216,7 +219,7 @@ class VioletConfig:
 
             return llm_config
 
-        with open(llm_config_path, "r") as f:
+        with open(self.config_path, "r") as f:
             agent_config = yaml.safe_load(f)
 
         return LLMConfig.model_validate(agent_config)
@@ -227,14 +230,11 @@ class VioletConfig:
         """
         import yaml
 
-        embedding_config_path = os.path.join(
-            self.base_path, 'embedding_config.yaml')
-
-        if os.path.exists(embedding_config_path) is False:
+        if os.path.exists(self.embedding_config_path) is False:
             embedding_config = EmbeddingConfig.default_config(
                 'text-embedding-3-small')
 
-            with open(embedding_config_path, "w", encoding="utf-8") as f:
+            with open(self.embedding_config_path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(
                     embedding_config.to_dict(),
                     f,
@@ -244,7 +244,7 @@ class VioletConfig:
 
             return embedding_config
 
-        with open(embedding_config_path, "r") as f:
+        with open(self.embedding_config_path, "r") as f:
             agent_config = yaml.safe_load(f)
 
         return EmbeddingConfig.model_validate(agent_config)

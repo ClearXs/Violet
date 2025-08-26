@@ -7,8 +7,7 @@ import SettingsAgents from '@/features/settings/agents';
 import SettingsMemory from '@/features/settings/memory';
 import useSettingsStore from '@/store/settings';
 
-export type SettingsProps = {
-};
+export type SettingsProps = {};
 
 export default function Settings(props: SettingsProps) {
   const settingStore = useSettingsStore();

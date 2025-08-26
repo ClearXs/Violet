@@ -146,28 +146,18 @@ router = APIRouter(prefix='/voice', tags=['voice'])
 
 
 async def setup():
-    global tts_config
-    global tts_pipeline
-    global whisper_handler
+    from violet.settings import model_settings
 
-    from violet.constants import VIOLET_DIR
-
-    config_path = VIOLET_DIR + "/tts_infer.yaml"
-
-    tts_config = TTS_Config(config_path)
-    tts_pipeline = TTS(tts_config)
-
-    whisper_handler = Whisper()
-
-    log_telemetry(
-        logger=logger,
-        event="initialize",
-        **{"module": "voice", "status": "successful"})
+    if model_settings.lazy_load == False:
+        _set_tts_pipeline()
+        _set_whisper()
 
 
 async def shutdown_gracefully():
     global tts_pipeline
-    tts_pipeline.close()
+
+    if tts_pipeline:
+        tts_pipeline.close()
 
 
 class TTS_Request(BaseModel):
@@ -358,6 +348,11 @@ async def tts_handle(req: dict):
         StreamingResponse: audio stream response.
     """
 
+    global tts_pipeline
+
+    if tts_pipeline is None:
+        _set_tts_pipeline()
+
     streaming_mode = req.get("streaming_mode", False)
     return_fragment = req.get("return_fragment", False)
     media_type = req.get("media_type", "wav")
@@ -519,6 +514,9 @@ async def set_sovits_weights(weights_path: str = None):
 
 @router.post('/asr')
 async def asr_endpoint(audio_file: UploadFile = File(...)):
+
+    global whisper_handler
+
     config = VioletConfig.get_config()
     file_storage_path = config.file_storage_path
 
@@ -529,7 +527,37 @@ async def asr_endpoint(audio_file: UploadFile = File(...)):
         f.write(data)
 
     try:
+        if whisper_handler is None:
+            _set_whisper()
+
         text, language = whisper_handler.rec(file_path)
         return JSONResponse(status_code=200, content={"data": {"text": text, "language": language}})
     except Exception as e:
         return JSONResponse(status_code=500, content={"message": "ASR failed", "Exception": str(e)})
+
+
+def _set_tts_pipeline():
+    global tts_pipeline
+    global tts_config
+
+    from violet.constants import VIOLET_DIR
+
+    config_path = VIOLET_DIR + "/tts_infer.yaml"
+    tts_config = TTS_Config(config_path)
+    tts_pipeline = TTS(tts_config)
+
+    log_telemetry(
+        logger=logger,
+        event="initialize",
+        **{"module": "tts", "status": "successful"})
+
+
+def _set_whisper():
+    global whisper_handler
+
+    whisper_handler = Whisper()
+
+    log_telemetry(
+        logger=logger,
+        event="initialize",
+        **{"module": "whisper", "status": "successful"})

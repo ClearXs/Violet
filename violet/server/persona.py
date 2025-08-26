@@ -13,3 +13,9 @@ async def get_activate_persona():
     personas = persona_manager.personas
 
     return JSONResponse(status_code=200, content={"data": personas.model_dump_json() if personas is not None else None})
+
+
+@router.get('/list')
+async def list_personas():
+    persona_manager.list_personas()
+    return JSONResponse(status_code=200, content={"data": persona_manager.list_personas()})

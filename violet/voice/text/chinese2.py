@@ -11,6 +11,7 @@ from pypinyin.contrib.tone_convert import to_finals_tone3, to_initials
 from violet.voice.text.symbols import punctuation
 from violet.voice.text.tone_sandhi import ToneSandhi
 from violet.voice.text.zh_normalization.text_normlization import TextNormalizer
+from violet.voice.text import text_path
 
 
 def normalizer(x): return cn2an.transform(x, "an2cn")
@@ -19,7 +20,7 @@ def normalizer(x): return cn2an.transform(x, "an2cn")
 current_file_path = os.path.dirname(__file__)
 pinyin_to_symbol_map = {
     line.split("\t")[0]: line.strip().split("\t")[1]
-    for line in open(os.path.join(current_file_path, "opencpop-strict.txt")).readlines()
+    for line in open(os.path.join(text_path, "opencpop-strict.txt")).readlines()
 }
 
 

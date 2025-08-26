@@ -4,8 +4,16 @@ import os
 # else:
 #   from text.symbols2 import symbols
 
+from violet.config import VioletConfig
 from violet.voice.text import symbols as symbols_v1
 from violet.voice.text import symbols2 as symbols_v2
+
+config = VioletConfig.get_config()
+text_path = os.path.join(config.model_storage_path, "GPT_SoVITS", "text")
+nltk_path = os.path.join(text_path, 'nltk_data')
+
+# set env nltk_data
+os.environ['NLTK_DATA'] = nltk_path
 
 _symbol_to_id_v1 = {s: i for i, s in enumerate(symbols_v1.symbols)}
 _symbol_to_id_v2 = {s: i for i, s in enumerate(symbols_v2.symbols)}

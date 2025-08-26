@@ -1,3 +1,4 @@
+import re
 import time
 import json
 from typing import Optional
@@ -250,8 +251,10 @@ class AgentWrapper:
         self.upload_manager = None
 
         # set and load model
-        self.set_model(self.llm_config)
-        self.set_embedding_model(self.embedding_config)
+        from violet.settings import model_settings
+        self.set_model(self.llm_config, model_settings.lazy_load == False)
+        self.set_embedding_model(
+            self.embedding_config, model_settings.lazy_load == False)
 
         # Initialize temporary message accumulator for ALL violet models
         self.temp_message_accumulator = TemporaryMessageAccumulator(
@@ -266,12 +269,27 @@ class AgentWrapper:
         # Pass URI tracking to accumulator
         self.temp_message_accumulator.uri_to_create_time = self.uri_to_create_time
 
-    def chat(self, message=None):
-
+    def chat(self, message: str, think: bool = False):
         personas = self.client.server.persona_manager.personas
+        system_message = Message(role=MessageRole(MessageRole.system), content=[
+                                 TextContent(text=personas.character_setting, type=MessageContentType.text)])
 
-        messages = [Message(role=MessageRole(MessageRole.assistant), content=[TextContent(text=personas.character_setting, type=MessageContentType.text)]),
-                    Message(role=MessageRole(MessageRole.user), content=[TextContent(text=message, type=MessageContentType.text)]),]
+        model_name = self.get_current_model()
+
+        user_message = None
+        if model_name.lower().startswith('qwen3'):
+            if think:
+                message += "/think"
+            else:
+                message += "/no_think"
+
+            user_message = Message(role=MessageRole(MessageRole.user), content=[
+                TextContent(text=message, type=MessageContentType.text)])
+        else:
+            user_message = Message(role=MessageRole(MessageRole.user), content=[
+                                   TextContent(text=message, type=MessageContentType.text)])
+
+        messages = [system_message, user_message]
 
         agent_state = self.agent_states.core_memory_agent_state
 
@@ -281,7 +299,11 @@ class AgentWrapper:
         )
 
         response = llm_client.send_llm_request(messages=messages)
-        return response.choices[0].message.content
+        output = response.choices[0].message.content
+        if model_name.lower().startswith('qwen3'):
+            return re.sub(r'<think>.*?</think>', '', output, flags=re.DOTALL)
+        else:
+            return output
 
     def chat_with_memory(self,
                          message=None,
@@ -800,7 +822,7 @@ class AgentWrapper:
 
     def set_embedding_model(self, embedding_config: Optional[EmbeddingConfig], force: bool = True) -> None:
         """
-        Set the embedding model 
+        Set the embedding model, if force whether True will be load model 
         """
 
         if embedding_config:
@@ -2506,6 +2528,9 @@ Please perform this analysis and create new memories as appropriate. Provide a d
         except Exception as e:
             self.logger.error(f"Error exporting resource memories: {e}")
             return [], 0
+
+    def _load_model(self):
+        pass
 
     def close(self):
         """

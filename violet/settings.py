@@ -73,6 +73,9 @@ class SummarizerSettings(BaseSettings):
 
 class ModelSettings(BaseSettings):
 
+    # decide whether to lazy load models
+    lazy_load: bool = True
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # env_prefix='my_prefix_'
@@ -231,9 +234,9 @@ class TestSettings(Settings):
         env_prefix="violet_test_", extra="ignore")
 
     VIOLET_DIR: Optional[Path] = Field(
-        Path.home() / ".violet/test", env="MIRIX_TEST_DIR")
+        Path.home() / ".violet/test", env="VIOLET_TEST_DIR")
     images_dir: Optional[Path] = Field(
-        Path.home() / ".violet/test" / "images", env="MIRIX_TEST_IMAGES_DIR")
+        Path.home() / ".violet/test" / "images", env="VIOLET_TEST_IMAGES_DIR")
 
 
 # singleton
