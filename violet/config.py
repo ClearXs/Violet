@@ -42,13 +42,13 @@ config = None
 @dataclass
 class VioletConfig:
     base_path: str = VIOLET_DIR
-    config_path: str = os.getenv(
-        "VIOLET_CONFIG_PATH") or os.path.join(VIOLET_DIR, "config")
+
+    violet_config_path = os.path.join(base_path, "config")
 
     # config path
-    config_path = os.path.join(config_path, "config.yaml")
-    embedding_config_path = os.path.join(config_path, "embedding.yaml")
-    tts_config_path = os.path.join(config_path, "tts_infer.yaml")
+    config_path = os.path.join(base_path, "config.yaml")
+    embedding_config_path = os.path.join(base_path, "embedding_config.yaml")
+    tts_config_path = os.path.join(base_path, "tts_infer.yaml")
 
     # preset
     preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
@@ -107,15 +107,13 @@ class VioletConfig:
     @classmethod
     def load(cls) -> "VioletConfig":
         # avoid circular import
-        from violet.utils.utils import printd
-
         config = configparser.ConfigParser()
 
         # allow overriding with env variables
         if os.getenv("VIOLET_CONFIG_PATH"):
-            config_path = os.getenv("VIOLET_CONFIG_PATH")
+            violet_config_path = os.getenv("VIOLET_CONFIG_PATH")
         else:
-            config_path = VioletConfig.config_path
+            violet_config_path = VioletConfig.violet_config_path
 
         # insure all configuration directories exist
         cls.create_config_dir()
@@ -124,40 +122,9 @@ class VioletConfig:
         cls.create_personas_dir()
         cls.create_prompts_dir()
 
-        if os.path.exists(config_path):
+        if os.path.exists(violet_config_path):
             # read existing config
-            config.read(config_path)
-
-            # Handle extraction of nested LLMConfig and EmbeddingConfig
-            # llm_config_dict = {
-            #    # Extract relevant LLM configuration from the config file
-            #    "model": get_field(config, "model", "model"),
-            #    "model_endpoint": get_field(config, "model", "model_endpoint"),
-            #    "model_endpoint_type": get_field(config, "model", "model_endpoint_type"),
-            #    "model_wrapper": get_field(config, "model", "model_wrapper"),
-            #    "context_window": get_field(config, "model", "context_window"),
-            # }
-            # embedding_config_dict = {
-            #    # Extract relevant Embedding configuration from the config file
-            #    "embedding_endpoint": get_field(config, "embedding", "embedding_endpoint"),
-            #    "embedding_model": get_field(config, "embedding", "embedding_model"),
-            #    "embedding_endpoint_type": get_field(config, "embedding", "embedding_endpoint_type"),
-            #    "embedding_dim": get_field(config, "embedding", "embedding_dim"),
-            #    "embedding_chunk_size": get_field(config, "embedding", "embedding_chunk_size"),
-            # }
-            # Remove null values
-            # llm_config_dict = {k: v for k, v in llm_config_dict.items() if v is not None}
-            # embedding_config_dict = {k: v for k, v in embedding_config_dict.items() if v is not None}
-            # Correct the types that aren't strings
-            # if "context_window" in llm_config_dict and llm_config_dict["context_window"] is not None:
-            #    llm_config_dict["context_window"] = int(llm_config_dict["context_window"])
-            # if "embedding_dim" in embedding_config_dict and embedding_config_dict["embedding_dim"] is not None:
-            #    embedding_config_dict["embedding_dim"] = int(embedding_config_dict["embedding_dim"])
-            # if "embedding_chunk_size" in embedding_config_dict and embedding_config_dict["embedding_chunk_size"] is not None:
-            #    embedding_config_dict["embedding_chunk_size"] = int(embedding_config_dict["embedding_chunk_size"])
-            # Construct the inner properties
-            # llm_config = LLMConfig(**llm_config_dict)
-            # embedding_config = EmbeddingConfig(**embedding_config_dict)
+            config.read(violet_config_path)
 
             # Everything else
             config_dict = {
@@ -180,20 +147,20 @@ class VioletConfig:
                 "metadata_storage_path": get_field(config, "metadata_storage", "path"),
                 "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
                 # Misc
-                "config_path": config_path,
+                "violet_config_path": violet_config_path,
                 "violet_version": get_field(config, "version", "violet_version"),
             }
             # Don't include null values
             config_dict = {k: v for k, v in config_dict.items()
                            if v is not None}
 
-            return cls(**config_dict)
+            return cls()
 
         # assert embedding_config is not None, "Embedding config must be provided if config does not exist"
         # assert llm_config is not None, "LLM config must be provided if config does not exist"
 
         # create new config
-        config = cls(config_path=config_path)
+        config = cls()
 
         config.create_config_dir()  # create dirs
 
@@ -284,21 +251,9 @@ class VioletConfig:
         # always make sure all directories are present
         self.create_config_dir()
 
-        with open(self.config_path, "w", encoding="utf-8") as f:
+        with open(self.violet_config_path, "w", encoding="utf-8") as f:
             config.write(f)
-        logger.debug(f"Saved Config:  {self.config_path}")
-
-    @staticmethod
-    def exists():
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = VioletConfig.config_path
-
-        assert not os.path.isdir(
-            config_path), f"Config path {config_path} cannot be set to a directory."
-        return os.path.exists(config_path)
+        logger.debug(f"Saved Config:  {self.violet_config_path}")
 
     @staticmethod
     def create_config_dir():

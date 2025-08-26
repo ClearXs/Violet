@@ -299,7 +299,6 @@ class TTS_Config:
     def __init__(self,
                  configs_path: str = None,
                  configs: Union[dict, str] = None):
-
         if configs_path:
             self.configs_path = configs_path
         else:
@@ -311,11 +310,11 @@ class TTS_Config:
             if not os.path.exists(self.configs_path):
                 self.save_configs()
                 print(f"Create default config file at {self.configs_path}")
-            configs: dict = deepcopy(default_tts_configs)
+            configs: dict = self._load_configs(self.configs_path)
 
         if isinstance(configs, str):
             self.configs_path = configs
-            configs: dict = self._load_configs(self.configs_path)
+            configs: dict = deepcopy(default_tts_configs)
 
         assert isinstance(configs, dict)
         version = configs.get("version", "v2").lower()
