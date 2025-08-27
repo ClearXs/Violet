@@ -20,7 +20,6 @@ from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 
 import violet.constants as constants
-import violet.server.utils as server_utils
 import violet.system as system
 from violet.agent import Agent, save_agent
 
@@ -932,8 +931,7 @@ class SyncServer(Server):
             config_copy = config.copy()
             for k, v in config.items():
                 if k == "key" or "_key" in k:
-                    config_copy[k] = server_utils.shorten_key_middle(
-                        v, chars_each_side=5)
+                    config_copy[k] = _shorten_key_middle(v, chars_each_side=5)
             return config_copy
 
         # TODO: do we need a separate server config?
@@ -1287,3 +1285,23 @@ class SyncServer(Server):
 
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"{e}")
+
+
+def _shorten_key_middle(key_string, chars_each_side=3):
+    """
+    Shortens a key string by showing a specified number of characters on each side and adding an ellipsis in the middle.
+
+    Args:
+    key_string (str): The key string to be shortened.
+    chars_each_side (int): The number of characters to show on each side of the ellipsis.
+
+    Returns:
+    str: The shortened key string with an ellipsis in the middle.
+    """
+    if not key_string:
+        return key_string
+    key_length = len(key_string)
+    if key_length <= 2 * chars_each_side:
+        return "..."  # Return ellipsis if the key is too short
+    else:
+        return key_string[:chars_each_side] + "..." + key_string[-chars_each_side:]

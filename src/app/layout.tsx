@@ -2,27 +2,28 @@
 
 import '@/index.css';
 import '@/global.css';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Toaster as SonnerToast } from '@/components/ui/sonner';
 import { LayoutProvider } from '@/context/layout-context';
 import { Progress } from '@/components/ui/progress';
 import NextIntlProvider from '@/context/next-int-context';
 import { FontProvider } from '@/context/font-context';
+import useSettingsStore from '@/store/settings';
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const router = useRouter();
   const [initial, setInitial] = useState<boolean>(false);
+
+  const { setOpen } = useSettingsStore();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === ',') {
         event.preventDefault();
-        router.push('/settings');
+        setOpen(true);
       }
     };
 

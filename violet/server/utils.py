@@ -26,21 +26,8 @@ def print_server_response(response):
         print(response)
 
 
-def shorten_key_middle(key_string, chars_each_side=3):
-    """
-    Shortens a key string by showing a specified number of characters on each side and adding an ellipsis in the middle.
+def get_server():
 
-    Args:
-    key_string (str): The key string to be shortened.
-    chars_each_side (int): The number of characters to show on each side of the ellipsis.
+    from violet.server.app import server
 
-    Returns:
-    str: The shortened key string with an ellipsis in the middle.
-    """
-    if not key_string:
-        return key_string
-    key_length = len(key_string)
-    if key_length <= 2 * chars_each_side:
-        return "..."  # Return ellipsis if the key is too short
-    else:
-        return key_string[:chars_each_side] + "..." + key_string[-chars_each_side:]
+    return server

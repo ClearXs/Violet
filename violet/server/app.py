@@ -13,18 +13,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
 import queue
+import violet
 from violet.agent.agent_wrapper import AgentWrapper
 from violet.config import VioletConfig
+from violet.interface import QueuingInterface
 from violet.log import get_logger
-from violet.services.persona_manager import PersonaManager
+from violet.server.server import SyncServer
 from violet.utils.utils import log_telemetry
 from violet.voice.api import TTS_Request, router as VoiceRouter
 from violet.voice.api import setup as voice_setup, shutdown_gracefully as voice_shutdown
 from violet.voice.api import tts_handle
-
-from violet.server.file import router as FileRouter
-from violet.server.persona import router as PersonaRouter
 from violet.voice.whisper.whisper import Whisper
+
+from violet.server.router.file import router as FileRouter
+from violet.server.router.persona import router as PersonaRouter
+from violet.server.router.config import router as ConfigRouter
+from violet.server.router.agents import router as AgentsRouter
 
 """
 VOICE RECORDING STRATEGY & ARCHITECTURE:
@@ -68,7 +72,9 @@ logger = get_logger(__name__)
 
 # Global agent instance
 agent = None
-persona_manager = PersonaManager()
+
+interface = QueuingInterface(debug=violet.utils.utils.DEBUG)
+server = SyncServer(default_interface_factory=lambda: interface)
 
 
 @asynccontextmanager
@@ -115,6 +121,8 @@ app = FastAPI(title="Violet API",
 app.include_router(VoiceRouter)
 app.include_router(FileRouter)
 app.include_router(PersonaRouter)
+app.include_router(ConfigRouter)
+app.include_router(AgentsRouter)
 
 # Add CORS middleware
 app.add_middleware(
@@ -1456,8 +1464,9 @@ async def pipeline_chat(
         tts_request.text = output
         tts_request.text_lang = 'ja'
 
-        personas = persona_manager.personas
-        ref_audio_path = personas.get_absolute_for(personas.config.ref_audio)
+        personas = server.persona_manager.personas
+        ref_audio_path = VioletConfig.get_absolute_path(
+            personas.r_path, personas.config.ref_audio)
         tts_request.ref_audio_path = ref_audio_path
         tts_request.prompt_lang = personas.config.prompt_lang
 
@@ -1547,4 +1556,4 @@ def _run_reflexion_process(agent):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=47283)
+    uvicorn.run(app, host="0.0.0.0", port=10890)

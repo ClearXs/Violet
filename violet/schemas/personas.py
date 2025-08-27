@@ -1,11 +1,9 @@
 from logging import getLogger
-from typing import List, Optional
+from typing import Any, Dict,  Optional
 from datetime import datetime
 
 from pydantic import BaseModel, Field
-
 from violet.schemas.violet_base import VioletBase
-
 
 logger = getLogger(__name__)
 
@@ -44,6 +42,10 @@ class PersonaUpdate(PersonaBase):
     thumb: Optional[str] = Field(None, description="thumb for persona image.")
 
 
+class PersonaMotion(BaseModel):
+    idle_loop: str = Field(..., description="Idle loop motion name")
+
+
 class Config(BaseModel):
     """
     Every persona directory configuration.
@@ -56,7 +58,7 @@ class Config(BaseModel):
         ref_audio_path (str): Reference audio path
         prompt_lang (str): Prompt language
         vrm (str): 3D avatar vrm name
-        motions (List[str]): List of motion names for the avatar.
+        motions (Dict[str, Any]): List of motion names for the avatar.
     """
     character_setting: str = Field(..., description="record")
 
@@ -67,5 +69,7 @@ class Config(BaseModel):
     # avatar
     vrm: str = Field(...,
                      description="3D avatar vrm name, existing current dir")
-    motions: List[str] = Field(...,
-                               description="List of motion names for the avatar.")
+
+    # motion
+    motion: PersonaMotion = Field(...,
+                                  description="List of motion names for the avatar.")

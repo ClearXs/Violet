@@ -1,11 +1,11 @@
 'use client';
 
 import SidebarNav from '@/components/sidebar-nav';
-import SettingsGeneral from '@/features/settings/general';
-import SettingsPersonas from '@/features/settings/personas';
-import SettingsAgents from '@/features/settings/agents';
-import SettingsMemory from '@/features/settings/memory';
 import useSettingsStore from '@/store/settings';
+import SettingsModel from './model';
+import SettingsEmbedding from './embedding';
+import SettingsTTS from './tts';
+import SettingsSTT from './stt';
 
 export type SettingsProps = {};
 
@@ -22,10 +22,12 @@ export default function Settings(props: SettingsProps) {
         />
       </aside>
       <div className='w-full h-full p-4'>
-        {settingStore.selectKey === 'general' && <SettingsGeneral {...props} />}
-        {settingStore.selectKey === 'personas' && <SettingsPersonas {...props} />}
-        {settingStore.selectKey === 'agents' && <SettingsAgents {...props} />}
-        {settingStore.selectKey === 'memory' && <SettingsMemory {...props} />}
+        {settingStore.selectKey === 'model' && <SettingsModel {...props} />}
+        {settingStore.selectKey === 'embedding' && (
+          <SettingsEmbedding {...props} />
+        )}
+        {settingStore.selectKey === 'tts' && <SettingsTTS {...props} />}
+        {settingStore.selectKey === 'stt' && <SettingsSTT {...props} />}
       </div>
     </div>
   );

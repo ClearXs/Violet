@@ -1,36 +1,30 @@
 import { create } from 'zustand';
-import {
-  IconUser,
-} from '@tabler/icons-react';
+import { IconUser } from '@tabler/icons-react';
 import { SidebarNavProps } from '@/components/sidebar-nav';
 
-type SettingKey =
-  | 'general'
-  | 'personas'
-  | 'agents'
-  | 'memory'
+type SettingKey = 'model' | 'embedding' | 'tts' | 'stt';
 
 const settingItems: SidebarNavProps['items'] = [
   {
-    key: 'general',
-    title: 'General',
+    key: 'model',
+    title: 'Model',
     icon: <IconUser size={18} />,
   },
   {
-    key: 'personas',
-    title: 'Personas',
+    key: 'embedding',
+    title: 'Embedding',
     icon: <IconUser size={18} />,
   },
   {
-    key: 'agents',
-    title: 'Agents',
+    key: 'tts',
+    title: 'TTS',
     icon: <IconUser size={18} />,
   },
   {
-    key: 'memory',
-    title: 'Memory',
+    key: 'stt',
+    title: 'STT',
     icon: <IconUser size={18} />,
-  }
+  },
 ];
 
 type State = {
@@ -48,9 +42,9 @@ type Action = {
 const useSettingsStore = create<State & Action>((set) => ({
   open: false,
   settingItems,
-  selectKey: 'general',
+  selectKey: 'model',
   setSelectKey: (key) => set({ selectKey: key }),
-  reset: () => set({ selectKey: 'general' }),
+  reset: () => set({ selectKey: 'model' }),
   setOpen(open) {
     set({ open });
   },

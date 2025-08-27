@@ -373,7 +373,7 @@ class LocalClient(Client):
             debug (bool): Whether to print debug information.
         """
 
-        from violet.server.server import SyncServer
+        from violet.server.app import interface, server
 
         # set logging levels
         violet.utils.utils.DEBUG = debug
@@ -384,9 +384,8 @@ class LocalClient(Client):
         self._default_embedding_config = default_embedding_config
 
         # create server
-        self.interface = QueuingInterface(debug=debug)
-        self.server = SyncServer(
-            default_interface_factory=lambda: self.interface)
+        self.interface = interface
+        self.server = server
 
         # initialize file manager
         from violet.services.file_manager import FileManager

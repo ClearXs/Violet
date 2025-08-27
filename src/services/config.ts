@@ -1,5 +1,3 @@
-import R from "@/types/r";
-
 export interface LLMConfig {
   /** The name of the LLM model */
   model: string;
@@ -195,7 +193,7 @@ export type TTSDevice = 'cpu' | 'cuda' | 'mps' | string;
 
 
 const useConfigApi = () => {
-  const getLLMConfig = (): Promise<R<LLMConfig>> => {
+  const getLLMConfig = (): Promise<LLMConfig> => {
     return fetch('/api/config/llm', {
       method: 'GET',
       headers: { 'content-type': 'application/json' },
@@ -204,7 +202,7 @@ const useConfigApi = () => {
     });
   };
 
-  const updateLLMConfig = (llm_config: LLMConfig): Promise<R<boolean>> => {
+  const updateLLMConfig = (llm_config: LLMConfig): Promise<boolean> => {
     return fetch('/api/config/llm', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
@@ -214,7 +212,7 @@ const useConfigApi = () => {
     });
   };
 
-  const getEmbeddingConfig = (): Promise<R<EmbeddingConfig>> => {
+  const getEmbeddingConfig = (): Promise<EmbeddingConfig> => {
     return fetch('/api/config/embedding', {
       method: 'GET',
       headers: { 'content-type': 'application/json' },
@@ -223,7 +221,7 @@ const useConfigApi = () => {
     });
   };
 
-  const updateEmbeddingConfig = (embedding_config: EmbeddingConfig): Promise<R<boolean>> => {
+  const updateEmbeddingConfig = (embedding_config: EmbeddingConfig): Promise<boolean> => {
     return fetch('/api/config/embedding', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
@@ -242,7 +240,7 @@ const useConfigApi = () => {
     });
   };
 
-  const updateTTSConfig = (tts_config: TTSConfig): Promise<R<boolean>> => {
+  const updateTTSConfig = (tts_config: TTSConfig): Promise<boolean> => {
     return fetch('/api/config/tts', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },

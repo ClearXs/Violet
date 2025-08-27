@@ -12,31 +12,21 @@ export const sidebarData: SidebarData = {
       logo: Command,
       plan: 'Personal Intelligence Hub',
     },
-    {
-      name: 'Acme Inc',
-      logo: GalleryVerticalEnd,
-      plan: 'Enterprise',
-    },
-    {
-      name: 'Acme Corp.',
-      logo: AudioWaveform,
-      plan: 'Startup',
-    },
   ],
   navGroups: [
     {
       title: 'Apps',
       items: [
         {
-          id: 'persona',
-          title: 'Persona',
-          url: '/persona',
+          id: 'personas',
+          title: 'Personas',
+          url: '/personas',
           icon: IconBook2,
         },
         {
           id: 'agents',
           title: 'Agents',
-          url: '/agent',
+          url: '/agents',
           icon: IconBulbFilled,
         },
         {

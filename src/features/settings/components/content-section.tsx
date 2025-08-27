@@ -19,7 +19,7 @@ export default function ContentSection({
         <h3 className='flex flex-row items-center  text-lg font-medium'>
           {title}
           {operation && (
-            <span className='ml-auto flex items-center'>{operation}</span>
+            <span className='ml-auto flex items-center gap-1'>{operation}</span>
           )}
         </h3>
         <p className='text-sm text-muted-foreground'>{desc}</p>

@@ -1,5 +1,3 @@
-import R from "@/types/r";
-
 /**
  * Persona interface matching the Python Pydantic model
  */
@@ -29,6 +27,41 @@ export interface Persona {
   created_at?: string;
 }
 
+export interface PersonaMotion {
+  idle_loop: string;
+}
+
+/**
+ * Persona configuration interface
+ */
+export interface Config {
+  /** Character setting file path */
+  character_setting: string;
+
+  /** Reference audio path for TTS */
+  ref_audio_path?: string;
+
+  /** Motion file paths */
+  motion: PersonaMotion;
+
+  /** VRM file path */
+  vrm: string;
+
+  /** Language configuration */
+  prompt_lang?: string;
+}
+
+/**
+ * Extended Persona interface with aggregated information
+ */
+export interface Personas extends Persona {
+  /** Persona prompt text content */
+  character_setting?: string;
+
+  /** Parsed configuration from config.yaml */
+  config?: Config;
+}
+
 /**
  * Persona API hook for managing persona operations
  */
@@ -36,7 +69,7 @@ const usePersonaApi = () => {
   /**
    * Get the currently activated persona
    */
-  const getActivatePersona = (): Promise<R<Persona | null>> => {
+  const getActivatePersona = (): Promise<Persona | null> => {
     return fetch('/api/persona/activate', {
       method: 'GET',
       headers: { 'content-type': 'application/json' },
@@ -48,7 +81,7 @@ const usePersonaApi = () => {
   /**
    * Get list of all personas
    */
-  const listPersonas = (): Promise<R<Persona[]>> => {
+  const listPersonas = (): Promise<Persona[]> => {
     return fetch('/api/persona/list', {
       method: 'GET',
       headers: { 'content-type': 'application/json' },
@@ -60,7 +93,9 @@ const usePersonaApi = () => {
   /**
    * Create a new persona
    */
-  const createPersona = (persona: Omit<Persona, 'id' | 'created_at' | 'updated_at'>): Promise<R<Persona>> => {
+  const createPersona = (
+    persona: Omit<Persona, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<Persona> => {
     return fetch('/api/persona', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -73,7 +108,10 @@ const usePersonaApi = () => {
   /**
    * Update an existing persona
    */
-  const updatePersona = (id: string, persona: Partial<Persona>): Promise<R<Persona>> => {
+  const updatePersona = (
+    id: string,
+    persona: Partial<Persona>
+  ): Promise<Persona> => {
     return fetch(`/api/persona/${id}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
@@ -86,7 +124,7 @@ const usePersonaApi = () => {
   /**
    * Delete a persona
    */
-  const deletePersona = (id: string): Promise<R<boolean>> => {
+  const deletePersona = (id: string): Promise<boolean> => {
     return fetch(`/api/persona/${id}`, {
       method: 'DELETE',
       headers: { 'content-type': 'application/json' },
@@ -98,7 +136,7 @@ const usePersonaApi = () => {
   /**
    * Activate a specific persona
    */
-  const activatePersona = (id: string): Promise<R<boolean>> => {
+  const activatePersona = (id: string): Promise<boolean> => {
     return fetch(`/api/persona/${id}/activate`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -110,7 +148,7 @@ const usePersonaApi = () => {
   /**
    * Deactivate a specific persona
    */
-  const deactivatePersona = (id: string): Promise<R<boolean>> => {
+  const deactivatePersona = (id: string): Promise<boolean> => {
     return fetch(`/api/persona/${id}/deactivate`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -122,8 +160,8 @@ const usePersonaApi = () => {
   /**
    * Get a specific persona by ID
    */
-  const getPersona = (id: string): Promise<R<Persona>> => {
-    return fetch(`/api/persona/${id}`, {
+  const getPersona = (id: string): Promise<Personas> => {
+    return fetch(`/api/persona/get_by_id/${id}`, {
       method: 'GET',
       headers: { 'content-type': 'application/json' },
     }).then((res) => {
@@ -134,7 +172,10 @@ const usePersonaApi = () => {
   /**
    * Upload persona thumbnail
    */
-  const uploadPersonaThumb = (id: string, file: File): Promise<R<{ thumb_url: string }>> => {
+  const uploadPersonaThumb = (
+    id: string,
+    file: File
+  ): Promise<R<{ thumb_url: string }>> => {
     const formData = new FormData();
     formData.append('file', file);
 

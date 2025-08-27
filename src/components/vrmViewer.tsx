@@ -1,21 +1,33 @@
-import { useContext, useCallback } from "react";
-import { ViewerContext } from "../features/vrmViewer/viewerContext";
+import { useContext, useCallback } from 'react';
+import { loadVRMAnimation } from '@/lib/VRMAnimation/loadVRMAnimation';
+import { ViewerContext } from '../features/vrmViewer/viewerContext';
 
-export default function VrmViewer() {
+export type Motion = {
+  idle_loop: string;
+};
+
+export type VrmProps = {
+  // available vrm model download path
+  vrm: string;
+
+  motion: Motion;
+};
+
+export default function VrmViewer({ vrm, motion }: VrmProps) {
   const { viewer } = useContext(ViewerContext);
 
   const canvasRef = useCallback(
     (canvas: HTMLCanvasElement) => {
       if (canvas) {
         viewer.setup(canvas);
-        viewer.loadVrm("./models/example.vrm");
+        viewer.loadVrm(vrm);
 
         // Drag and DropでVRMを差し替え
-        canvas.addEventListener("dragover", function (event) {
+        canvas.addEventListener('dragover', function (event) {
           event.preventDefault();
         });
 
-        canvas.addEventListener("drop", function (event) {
+        canvas.addEventListener('drop', function (event) {
           event.preventDefault();
 
           const files = event.dataTransfer?.files;
@@ -28,11 +40,14 @@ export default function VrmViewer() {
             return;
           }
 
-          const file_type = file.name.split(".").pop();
-          if (file_type === "vrm") {
-            const blob = new Blob([file], { type: "application/octet-stream" });
+          const file_type = file.name.split('.').pop();
+          if (file_type === 'vrm') {
+            const blob = new Blob([file], { type: 'application/octet-stream' });
             const url = window.URL.createObjectURL(blob);
-            viewer.loadVrm(url);
+            viewer.loadVrm(url, async (model) => {
+              const vrma = await loadVRMAnimation(motion.idle_loop);
+              if (vrma) model.loadAnimation(vrma);
+            });
           }
         });
       }
@@ -40,9 +55,5 @@ export default function VrmViewer() {
     [viewer]
   );
 
-  return (
-    <div className={"absolute top-0 left-0 w-screen h-[100svh] -z-10 bg-transparent overflow-hidden"}>
-      <canvas ref={canvasRef} className={"h-full w-full"}></canvas>
-    </div>
-  );
+  return <canvas ref={canvasRef} className={'h-full w-full'}></canvas>;
 }

@@ -1,5 +1,4 @@
 from datetime import datetime
-import os
 import pathlib
 from typing import List
 from fastapi import UploadFile
@@ -54,10 +53,3 @@ async def _write_file(file: UploadFile, base_dir: str) -> str:
         f.write(data)
 
     return file_path.absolute()
-
-
-async def to_absolute_path(file_path: str) -> str:
-    """
-    Convert a relative file path to an absolute file path.
-    """
-    return os.path.join(config.base_path, file_path)

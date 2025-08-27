@@ -156,12 +156,12 @@ class PersonaManager:
             return [persona.to_pydantic() for persona in personas]
 
     @enforce_types
-    def get_persona_by_id(self, persona_id: str) -> Optional[PydanticPersona]:
+    def get_persona_by_id(self, persona_id: str) -> Optional[Personas]:
         with self.session_maker() as session:
             try:
                 persona = PersonaModel.read(
                     db_session=session, identifier=persona_id)
-                return persona.to_pydantic() if persona else None
+                return Personas.from_persona(persona.to_pydantic()) if persona else None
             except NoResultFound:
                 return None
 
@@ -169,17 +169,24 @@ class PersonaManager:
     def create_default_persona(self, actor: PydanticUser):
         import os
         persona_path = self.config.persona_path
+
         r_path = os.path.join(
             persona_path, PersonaManager.DEFAULT_PERSONA_NAME)
+        thumb = os.path.join(r_path, "thumb.png")
 
         persona = PydanticPersona(id=PersonaManager.DEFAULT_PERSONA_ID,
                                   name=PersonaManager.DEFAULT_PERSONA_NAME,
                                   activated=True,
-                                  r_path=r_path)
+                                  r_path=VioletConfig.get_relative_path(
+                                      r_path),
+                                  thumb=VioletConfig.get_relative_path(thumb))
 
         return self.create_persona(persona=persona, actor=actor)
 
     def get_activated_persona(self) -> Optional[PydanticPersona]:
+        if self.personas is not None:
+            return self.personas
+
         with self.session_maker() as session:
             try:
                 personas = PersonaModel.list(

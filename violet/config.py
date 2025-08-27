@@ -302,3 +302,21 @@ class VioletConfig:
             config = VioletConfig.load()
 
         return config
+
+    @staticmethod
+    def get_relative_path(absolute_path: str) -> str:
+        """Get the relative path from the violet directory."""
+        return os.path.relpath(absolute_path, VIOLET_DIR)
+
+    @staticmethod
+    def get_absolute_path(path: str, *p) -> str:
+        """
+        Convert a relative file path to an absolute file path.
+        """
+        file_path = path
+        if path.startswith(VioletConfig.base_path):
+            file_path = path
+        else:
+            file_path = os.path.join(VioletConfig.base_path, file_path)
+
+        return os.path.join(file_path, *p)

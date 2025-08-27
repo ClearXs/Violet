@@ -7,10 +7,16 @@ import {
 import { NavGroup } from '@/components/layout/nav-group';
 import { sidebarData } from '@/config/router';
 import { TeamSwitcher } from './team-switcher';
-import { Button } from '../ui/button';
-import { IconSettings } from '@tabler/icons-react';
+import React from 'react';
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+type ExtendSidebarProps = {
+  footer?: React.ReactNode;
+};
+
+export function AppSidebar({
+  footer,
+  ...props
+}: ExtendSidebarProps & React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible='icon' variant='sidebar' {...props}>
       <SidebarHeader>
@@ -21,11 +27,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <NavGroup key={props.title} {...props} />
         ))}
       </SidebarContent>
-      <SidebarFooter>
-        <Button size='icon' className='w-full'>
-          <IconSettings />
-        </Button>
-      </SidebarFooter>
+      <SidebarFooter>{footer && footer}</SidebarFooter>
     </Sidebar>
   );
 }

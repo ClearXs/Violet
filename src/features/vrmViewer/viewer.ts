@@ -1,7 +1,6 @@
-import * as THREE from "three";
-import { Model } from "./model";
-import { loadVRMAnimation } from "@/lib/VRMAnimation/loadVRMAnimation";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import * as THREE from 'three';
+import { Model } from './model';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 /**
  * three.jsを使った3Dビューワー
@@ -41,7 +40,7 @@ export class Viewer {
     this._clock.start();
   }
 
-  public loadVrm(url: string) {
+  public loadVrm(url: string, onSuccess?: (model: Model) => Promise<void>) {
     if (this.model?.vrm) {
       this.unloadVRM();
     }
@@ -58,8 +57,7 @@ export class Viewer {
 
       this._scene.add(this.model.vrm.scene);
 
-      const vrma = await loadVRMAnimation("./motion/idle_loop.vrma");
-      if (vrma) this.model.loadAnimation(vrma);
+      await onSuccess?.(this.model);
 
       // HACK: アニメーションの原点がずれているので再生後にカメラ位置を調整する
       requestAnimationFrame(() => {
@@ -104,7 +102,7 @@ export class Viewer {
     this._cameraControls.screenSpacePanning = true;
     this._cameraControls.update();
 
-    window.addEventListener("resize", () => {
+    window.addEventListener('resize', () => {
       this.resize();
     });
     this.isReady = true;
@@ -136,7 +134,7 @@ export class Viewer {
    * VRMのheadノードを参照してカメラ位置を調整する
    */
   public resetCamera() {
-    const headNode = this.model?.vrm?.humanoid.getNormalizedBoneNode("head");
+    const headNode = this.model?.vrm?.humanoid.getNormalizedBoneNode('head');
 
     if (headNode) {
       const headWPos = headNode.getWorldPosition(new THREE.Vector3());
