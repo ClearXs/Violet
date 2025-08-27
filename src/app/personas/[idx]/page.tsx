@@ -3,13 +3,13 @@
 import DraggableWrapper from '@/components/dragble-wrapper';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import VrmViewer from '@/components/vrmViewer';
 import { useLayout } from '@/context/layout-context';
 import usePersonaApi, { Personas } from '@/services/personas';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { ChevronDown, Maximize, Minimize } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { use, useEffect, useState } from 'react';
+import Avatar from '@/features/avatar';
 
 export default function PersonaDetails({
   params,
@@ -72,7 +72,7 @@ export default function PersonaDetails({
       </DraggableWrapper>
 
       {persona && (
-        <VrmViewer
+        <Avatar
           vrm={`/api/file/download?path=${
             persona.r_path + '/' + persona.config?.vrm
           }`}

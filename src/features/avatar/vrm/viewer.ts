@@ -40,13 +40,14 @@ export class Viewer {
     this._clock.start();
   }
 
-  public loadVrm(url: string, onSuccess?: (model: Model) => Promise<void>) {
+  public loadVrm(url: string, onPostProcessor?: (model: Model) => Promise<void>) {
     if (this.model?.vrm) {
       this.unloadVRM();
     }
 
     // gltf and vrm
     this.model = new Model(this._camera || new THREE.Object3D());
+    
     this.model.loadVRM(url).then(async () => {
       if (!this.model?.vrm) return;
 
@@ -56,8 +57,8 @@ export class Viewer {
       });
 
       this._scene.add(this.model.vrm.scene);
-
-      await onSuccess?.(this.model);
+      
+      if (onPostProcessor) await onPostProcessor?.(this.model);
 
       // HACK: アニメーションの原点がずれているので再生後にカメラ位置を調整する
       requestAnimationFrame(() => {
