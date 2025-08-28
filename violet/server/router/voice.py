@@ -2,12 +2,13 @@ from fastapi.params import Depends
 from pydantic import BaseModel
 from violet.config import VioletConfig
 from violet.log import get_logger
+from violet.schemas.tts_config import TTS_Config
 from violet.server.context import get_tts_pipeline, get_whisper_handler
 from violet.voice.TTS_infer_pack.text_segmentation_method import get_method_names as get_cut_method_names
 from violet.voice.TTS_infer_pack.TTS import TTS
 from io import BytesIO
 from fastapi.responses import StreamingResponse, JSONResponse
-from fastapi import APIRouter,  File, Query, Response, UploadFile
+from fastapi import APIRouter,  File, Query, Request, Response, UploadFile
 import soundfile as sf
 import numpy as np
 import wave
@@ -134,9 +135,7 @@ def wave_header_chunk(frame_input=b"", channels=1, sample_width=2, sample_rate=3
     return wav_buf.read()
 
 
-def check_params(req: dict):
-    global tts_config
-
+def check_params(req: dict, tts_config: TTS_Config):
     text: str = req.get("text", "")
     text_lang: str = req.get("text_lang", "")
     ref_audio_path: str = req.get("ref_audio_path", "")
@@ -216,7 +215,7 @@ async def tts_handle(req: dict, tts_pipeline: TTS):
     return_fragment = req.get("return_fragment", False)
     media_type = req.get("media_type", "wav")
 
-    check_res = check_params(req)
+    check_res = check_params(req, tts_pipeline.configs)
     if check_res is not None:
         return check_res
 
@@ -345,6 +344,65 @@ async def asr_endpoint(audio_file: UploadFile = File(...),
 
     try:
         text, language = whisper_handler.rec(file_path)
-        return JSONResponse(status_code=200, content={"data": {"text": text, "language": language}})
+
+        return {"text": text, "language": language}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"message": "ASR failed", "Exception": str(e)})
+        return JSONResponse(status_code=500, content={"message": f"ASR failed {str(e)}"})
+
+
+@router.post('/asr/raw')
+async def asr_raw_endpoint(request: Request,
+                           whisper_handler: Whisper = Depends(get_whisper_handler)):
+    """
+    ASR endpoint for raw blob data sent as request body
+
+    Args:
+        request: FastAPI Request object containing raw audio blob
+        whisper_handler: Whisper instance for speech recognition
+
+    Returns:
+        JSONResponse with transcribed text and detected language
+    """
+    config = VioletConfig.get_config()
+    file_storage_path = config.file_storage_path
+
+    import uuid
+    import time
+    temp_filename = f"temp_audio_{int(time.time())}_{uuid.uuid4().hex[:8]}.webm"
+    temp_file_path = os.path.join(file_storage_path, temp_filename)
+
+    audio_data = await request.body()
+    with open(temp_file_path, "wb") as f:
+        f.write(audio_data)
+
+    wav_path = temp_file_path.replace(".webm", ".wav")
+    convert_to_wav(temp_file_path, wav_path)
+
+    try:
+        audio_data = await request.body()
+
+        with open(temp_file_path, "wb") as f:
+            f.write(audio_data)
+
+        text, language = whisper_handler.rec(wav_path)
+
+        return {"text": text, "language": language}
+    except Exception as e:
+        return {"message": "ASR failed", "Exception": str(e)}
+    finally:
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
+
+def convert_to_wav(input_path: str, output_path: str, sample_rate: int = 16000):
+    cmd = [
+        "ffmpeg",
+        "-y",  # 覆盖文件
+        "-i", input_path,  # 输入文件
+        "-ar", str(sample_rate),  # 重采样，比如 16000（Whisper 推荐）
+        "-ac", "1",  # 单声道
+        "-f", "wav",  # 输出格式
+        output_path,
+    ]
+    subprocess.run(cmd, check=True)
+    return output_path

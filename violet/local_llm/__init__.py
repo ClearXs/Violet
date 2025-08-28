@@ -14,12 +14,12 @@ def load_model(llm_config: LLMConfig, enforce_load: bool = False):
     if model_endpoint_type == 'llama':
         from violet.local_llm.llama import load_model
 
-        load_model(llm_config, enforce_load)
+        return load_model(llm_config, enforce_load)
 
     elif model_endpoint_type == 'mlx-vlm':
         from violet.local_llm.mlx import load_model
 
-        load_model(llm_config)
+        return load_model(llm_config)
     else:
         logger.warning(
             f"Unknown support local model type: {model_endpoint_type}")
@@ -31,7 +31,7 @@ def load_embedding_model(embedding_config: EmbeddingConfig, enforce_load: bool =
     if embedding_endpoint_type == 'llama':
         from violet.local_llm.llama import load_embedding_model
 
-        load_embedding_model(embedding_config, enforce_load)
+        return load_embedding_model(embedding_config, enforce_load)
     else:
         logger.warning(
             f"Unknown support local embedding model type: {embedding_endpoint_type}")

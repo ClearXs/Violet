@@ -8,18 +8,20 @@ const useRecorder = () => {
 
   async function start(onEnd: (audio: Blob) => Promise<void>) {
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
     });
-    const recorder = new MediaRecorder(stream);
+    const recorder = new MediaRecorder(stream, {
+      mimeType: 'audio/webm;codecs=opus',
+    });
 
     chunks.current = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.current.push(e.data);
-    };
-
-    recorder.onstop = async () => {
-      const blob = new Blob(chunks.current, { type: 'audio/webm' });
-      await onEnd?.(blob);
+    recorder.ondataavailable = async (e) => {
+      await onEnd?.(e.data);
     };
 
     recorder.start();

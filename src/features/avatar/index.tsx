@@ -14,19 +14,33 @@ export default function Avatar(props: AvatarProps) {
 
   const [recording, setRecording] = useState(false);
 
-  useEffect(() => {
-    const tm = setTimeout(() => {
-      speakApi.speak(
-        {
-          text: 'who are you',
-          expression: 'happy',
-        },
-        viewer
-      );
-    }, 2000);
+  const handleHumanVoice = useCallback(async (blob: Blob) => {
+    try {
+      const { text, language } = await doRecognizeVoice(blob);
+      debugger;
 
-    return () => clearTimeout(tm);
+      // speakApi.speak({ text, language, expression: 'neutral' }, viewer);
+    } catch (error) {}
   }, []);
+
+  // recognize voice data
+  const doRecognizeVoice = useCallback(
+    (blob: Blob): Promise<{ text: string; language: string }> => {
+      return fetch('/api/voice/asr/raw', {
+        method: 'POST',
+        body: blob,
+        headers: {
+          'Content-Type': 'audio/webm',
+        },
+      }).then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to recognize voice');
+        }
+        return response.json();
+      });
+    },
+    []
+  );
 
   const handleRecording = useCallback(
     async (event: KeyboardEvent) => {
@@ -37,7 +51,10 @@ export default function Avatar(props: AvatarProps) {
           setRecording(false);
         } else {
           setRecording(true);
-          await start(async (blob) => {});
+
+          await start(async (blob) => {
+            await handleHumanVoice(blob);
+          });
         }
       }
     },

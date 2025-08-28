@@ -7,6 +7,7 @@ export type EmotionType = (typeof emotions)[number] & VRMExpressionPresetName;
 
 export type Screenplay = {
   text: string;
+  language: string;
   expression: EmotionType;
 };
 
