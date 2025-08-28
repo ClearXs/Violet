@@ -2,8 +2,8 @@ import os
 from typing import Optional
 
 import yaml
-from violet.config import VioletConfig
 from violet.schemas.personas import Config, Persona
+from violet.utils.file import get_absolute_path
 
 
 class Personas(Persona):
@@ -24,7 +24,7 @@ class Personas(Persona):
 
         # check path whether existing.
 
-        if os.path.exists(VioletConfig.get_absolute_path(current.r_path)) is False:
+        if os.path.exists(get_absolute_path(current.r_path)) is False:
             raise FileNotFoundError(
                 f"Persona Resource path {current.r_path} does not exist.")
 
@@ -33,7 +33,7 @@ class Personas(Persona):
         return current
 
     def _extract_prompt_config(self):
-        persona_dir_path = VioletConfig.get_absolute_path(self.r_path)
+        persona_dir_path = get_absolute_path(self.r_path)
         config_path = os.path.join(persona_dir_path, 'config.yaml')
 
         if os.path.exists(config_path):

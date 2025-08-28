@@ -3,31 +3,7 @@ export interface LLMConfig {
   model: string;
 
   /** The endpoint type for the model */
-  model_endpoint_type?: 
-    | "openai"
-    | "anthropic"
-    | "cohere"
-    | "google_ai"
-    | "google_vertex"
-    | "azure_openai"
-    | "groq"
-    | "ollama"
-    | "webui"
-    | "webui-legacy"
-    | "lmstudio"
-    | "lmstudio-legacy"
-    | "lmstudio-chatcompletions"
-    | "llamacpp"
-    | "koboldcpp"
-    | "vllm"
-    | "hugging-face"
-    | "together"
-    | "bedrock"
-    | "deepseek"
-    | "xai"
-    | "mistral"
-    | "llama"
-    | "mlx-vlm";
+  model_endpoint_type?: 'openai' | 'ollama' | 'llama' | 'mlx-vlm';
 
   /** The endpoint for the model */
   model_endpoint?: string;
@@ -41,8 +17,8 @@ export interface LLMConfig {
   /** The context window size for the model */
   context_window: number;
 
-  /** 
-   * Puts 'inner_thoughts' as a kwarg in the function call if this is set to True. 
+  /**
+   * Puts 'inner_thoughts' as a kwarg in the function call if this is set to True.
    * This helps with function calling performance and also the generation of inner thoughts.
    */
   put_inner_thoughts_in_kwargs?: boolean;
@@ -50,14 +26,14 @@ export interface LLMConfig {
   /** The handle for this config, in the format provider/model-name */
   handle?: string;
 
-  /** 
-   * The temperature to use when generating text with the model. 
+  /**
+   * The temperature to use when generating text with the model.
    * A higher temperature will result in more random text.
    */
   temperature?: number;
 
-  /** 
-   * The maximum number of tokens to generate. 
+  /**
+   * The maximum number of tokens to generate.
    * If not set, the model will use its default value.
    */
   max_tokens?: number;
@@ -66,10 +42,10 @@ export interface LLMConfig {
   enable_reasoner?: boolean;
 
   /** The reasoning effort to use when generating text reasoning models */
-  reasoning_effort?: "low" | "medium" | "high";
+  reasoning_effort?: 'low' | 'medium' | 'high';
 
-  /** 
-   * Configurable thinking budget for extended thinking, only used if enable_reasoner is True. 
+  /**
+   * Configurable thinking budget for extended thinking, only used if enable_reasoner is True.
    * Minimum value is 1024.
    */
   max_reasoning_tokens?: number;
@@ -89,26 +65,26 @@ export interface LLMConfig {
 
 export interface EmbeddingConfig {
   /** The endpoint type for the model */
-  embedding_endpoint_type: 
-    | "openai"
-    | "anthropic"
-    | "bedrock"
-    | "cohere"
-    | "google_ai"
-    | "azure"
-    | "groq"
-    | "ollama"
-    | "webui"
-    | "webui-legacy"
-    | "lmstudio"
-    | "lmstudio-legacy"
-    | "llamacpp"
-    | "koboldcpp"
-    | "vllm"
-    | "hugging-face"
-    | "mistral"
-    | "together"
-    | "llama";
+  embedding_endpoint_type:
+    | 'openai'
+    | 'anthropic'
+    | 'bedrock'
+    | 'cohere'
+    | 'google_ai'
+    | 'azure'
+    | 'groq'
+    | 'ollama'
+    | 'webui'
+    | 'webui-legacy'
+    | 'lmstudio'
+    | 'lmstudio-legacy'
+    | 'llamacpp'
+    | 'koboldcpp'
+    | 'vllm'
+    | 'hugging-face'
+    | 'mistral'
+    | 'together'
+    | 'llama';
 
   /** The endpoint for the model (`undefined` if local) */
   embedding_endpoint?: string;
@@ -141,22 +117,22 @@ export interface EmbeddingConfig {
 export interface TTSVersionConfig {
   /** Base path for BERT model */
   bert_base_path: string;
-  
+
   /** Base path for Chinese HuBERT model */
   cnhuhbert_base_path: string;
-  
+
   /** Device to run on (cpu/cuda/etc.) */
   device: string;
-  
+
   /** Whether to use half precision */
   is_half: boolean;
-  
+
   /** Path to T2S (Text-to-Speech) weights */
   t2s_weights_path: string;
-  
+
   /** Version identifier */
   version: string;
-  
+
   /** Path to VITS weights */
   vits_weights_path: string;
 }
@@ -167,16 +143,16 @@ export interface TTSVersionConfig {
 export interface TTSConfig {
   /** Custom TTS configuration */
   custom: TTSVersionConfig;
-  
+
   /** Version 1 configuration */
   v1: TTSVersionConfig;
-  
+
   /** Version 2 configuration */
   v2: TTSVersionConfig;
-  
+
   /** Version 3 configuration */
   v3: TTSVersionConfig;
-  
+
   /** Version 4 configuration */
   v4: TTSVersionConfig;
 }
@@ -191,6 +167,22 @@ export type TTSVersion = 'custom' | 'v1' | 'v2' | 'v3' | 'v4';
  */
 export type TTSDevice = 'cpu' | 'cuda' | 'mps' | string;
 
+/**
+ * Whisper configuration interface
+ */
+export interface WhisperConfig {
+  /** Model path or identifier */
+  model: string;
+
+  /** Engine type - currently only whisper is supported */
+  engine: 'whisper';
+
+  /** API server endpoint (optional for local models) */
+  endpoint?: string;
+
+  /** API key for external services (optional) */
+  api_key?: string;
+}
 
 const useConfigApi = () => {
   const getLLMConfig = (): Promise<LLMConfig> => {
@@ -221,7 +213,9 @@ const useConfigApi = () => {
     });
   };
 
-  const updateEmbeddingConfig = (embedding_config: EmbeddingConfig): Promise<boolean> => {
+  const updateEmbeddingConfig = (
+    embedding_config: EmbeddingConfig
+  ): Promise<boolean> => {
     return fetch('/api/config/embedding', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
@@ -231,7 +225,7 @@ const useConfigApi = () => {
     });
   };
 
-  const getTTSConfig = (): Promise<R<TTSConfig>> => {
+  const getTTSConfig = (): Promise<TTSConfig> => {
     return fetch('/api/config/tts', {
       method: 'GET',
       headers: { 'content-type': 'application/json' },
@@ -250,6 +244,31 @@ const useConfigApi = () => {
     });
   };
 
+  /**
+   * Get Whisper configuration
+   */
+  const getWhisperConfig = (): Promise<WhisperConfig> => {
+    return fetch('/api/config/whisper', {
+      method: 'GET',
+      headers: { 'content-type': 'application/json' },
+    }).then((res) => {
+      return res.json();
+    });
+  };
+
+  /**
+   * Update Whisper configuration
+   */
+  const updateWhisperConfig = (config: WhisperConfig): Promise<boolean> => {
+    return fetch('/api/config/whisper', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(config),
+    }).then((res) => {
+      return res.ok;
+    });
+  };
+
   return {
     getLLMConfig,
     updateLLMConfig,
@@ -257,6 +276,8 @@ const useConfigApi = () => {
     updateEmbeddingConfig,
     getTTSConfig,
     updateTTSConfig,
+    getWhisperConfig,
+    updateWhisperConfig,
   };
 };
 

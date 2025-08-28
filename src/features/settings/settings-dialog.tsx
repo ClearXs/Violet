@@ -29,7 +29,8 @@ export default function SettingsDialog() {
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription className='flex flex-row items-center '>
-              Manage your account settings and set e-mail preferences..
+              Manage your application settings including models, TTS, ASR, and
+              system preferences.
             </DialogDescription>
             <Separator />
           </DialogHeader>

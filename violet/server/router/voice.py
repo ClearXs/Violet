@@ -1,156 +1,28 @@
-"""
-# WebAPI文档
-
-## 调用:
-
-### 推理
-
-endpoint: `/tts`
-GET:
-```
-http://127.0.0.1:9880/tts?text=先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。&text_lang=zh&ref_audio_path=archive_jingyuan_1.wav&prompt_lang=zh&prompt_text=我是「罗浮」云骑将军景元。不必拘谨，「将军」只是一时的身份，你称呼我景元便可&text_split_method=cut5&batch_size=1&media_type=wav&streaming_mode=true
-```
-
-POST:
-```json
-{
-    "text": "",                   # str.(required) text to be synthesized
-    "text_lang: "",               # str.(required) language of the text to be synthesized
-    "ref_audio_path": "",         # str.(required) reference audio path
-    "aux_ref_audio_paths": [],    # list.(optional) auxiliary reference audio paths for multi-speaker tone fusion
-    "prompt_text": "",            # str.(optional) prompt text for the reference audio
-    "prompt_lang": "",            # str.(required) language of the prompt text for the reference audio
-    "top_k": 5,                   # int. top k sampling
-    "top_p": 1,                   # float. top p sampling
-    "temperature": 1,             # float. temperature for sampling
-    "text_split_method": "cut0",  # str. text split method, see text_segmentation_method.py for details.
-    "batch_size": 1,              # int. batch size for inference
-    "batch_threshold": 0.75,      # float. threshold for batch splitting.
-    "split_bucket: True,          # bool. whether to split the batch into multiple buckets.
-    "speed_factor":1.0,           # float. control the speed of the synthesized audio.
-    "streaming_mode": False,      # bool. whether to return a streaming response.
-    "seed": -1,                   # int. random seed for reproducibility.
-    "parallel_infer": True,       # bool. whether to use parallel inference.
-    "repetition_penalty": 1.35    # float. repetition penalty for T2S model.
-    "sample_steps": 32,           # int. number of sampling steps for VITS model V3.
-    "super_sampling": False,       # bool. whether to use super-sampling for audio when using VITS model V3.
-}
-```
-
-RESP:
-成功: 直接返回 wav 音频流， http code 200
-失败: 返回包含错误信息的 json, http code 400
-
-### 命令控制
-
-endpoint: `/control`
-
-command:
-"restart": 重新运行
-"exit": 结束运行
-
-GET:
-```
-http://127.0.0.1:9880/control?command=restart
-```
-POST:
-```json
-{
-    "command": "restart"
-}
-```
-
-RESP: 无
-
-
-### 切换GPT模型
-
-endpoint: `/set_gpt_weights`
-
-GET:
-```
-http://127.0.0.1:9880/set_gpt_weights?weights_path=voice/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt
-```
-RESP:
-成功: 返回"success", http code 200
-失败: 返回包含错误信息的 json, http code 400
-
-
-### 切换Sovits模型
-
-endpoint: `/set_sovits_weights`
-
-GET:
-```
-http://127.0.0.1:9880/set_sovits_weights?weights_path=voice/pretrained_models/s2G488k.pth
-```
-
-RESP:
-成功: 返回"success", http code 200
-失败: 返回包含错误信息的 json, http code 400
-
-"""
-
+from fastapi.params import Depends
 from pydantic import BaseModel
 from violet.config import VioletConfig
 from violet.log import get_logger
-from violet.utils.utils import log_telemetry
+from violet.server.context import get_tts_pipeline, get_whisper_handler
 from violet.voice.TTS_infer_pack.text_segmentation_method import get_method_names as get_cut_method_names
-from violet.voice.TTS_infer_pack.TTS import TTS, TTS_Config
-from violet.i18n.i18n import I18nAuto
+from violet.voice.TTS_infer_pack.TTS import TTS
 from io import BytesIO
 from fastapi.responses import StreamingResponse, JSONResponse
-from fastapi import APIRouter,  File, Response, UploadFile
+from fastapi import APIRouter,  File, Query, Response, UploadFile
 import soundfile as sf
 import numpy as np
-import signal
 import wave
 import subprocess
-import argparse
 import os
-import sys
 from typing import Generator
 
 from violet.voice.whisper.whisper import Whisper
 
 logger = get_logger(__name__)
 
-now_dir = os.getcwd()
-sys.path.append(now_dir)
-sys.path.append("%s/voice" % (now_dir))
-
-
 # print(sys.path)
-i18n = I18nAuto()
 cut_method_names = get_cut_method_names()
 
-parser = argparse.ArgumentParser(description="GPT-SoVITS api")
-parser.add_argument("-c", "--tts_config", type=str,
-                    default="violet/voice/configs/tts_infer.yaml", help="tts_infer路径")
-parser.add_argument("-a", "--bind_addr", type=str,
-                    default="127.0.0.1", help="default: 127.0.0.1")
-parser.add_argument("-p", "--port", type=int,
-                    default="9880", help="default: 9880")
-args = parser.parse_args()
-config_path = args.tts_config
-# device = args.device
-port = args.port
-host = args.bind_addr
-argv = sys.argv
-
-tts_config: TTS_Config = None
-tts_pipeline: TTS = None
-whisper_handler: Whisper = None
-
 router = APIRouter(prefix='/voice', tags=['voice'])
-
-
-async def setup():
-    from violet.settings import model_settings
-
-    if model_settings.lazy_load == False:
-        _set_tts_pipeline()
-        _set_whisper()
 
 
 async def shutdown_gracefully():
@@ -262,14 +134,6 @@ def wave_header_chunk(frame_input=b"", channels=1, sample_width=2, sample_rate=3
     return wav_buf.read()
 
 
-def handle_control(command: str):
-    if command == "restart":
-        os.execl(sys.executable, sys.executable, *argv)
-    elif command == "exit":
-        os.kill(os.getpid(), signal.SIGTERM)
-        exit(0)
-
-
 def check_params(req: dict):
     global tts_config
 
@@ -314,7 +178,7 @@ def check_params(req: dict):
     return None
 
 
-async def tts_handle(req: dict):
+async def tts_handle(req: dict, tts_pipeline: TTS):
     """
     Text to speech handler.
 
@@ -347,11 +211,6 @@ async def tts_handle(req: dict):
     returns:
         StreamingResponse: audio stream response.
     """
-
-    global tts_pipeline
-
-    if tts_pipeline is None:
-        _set_tts_pipeline()
 
     streaming_mode = req.get("streaming_mode", False)
     return_fragment = req.get("return_fragment", False)
@@ -396,37 +255,46 @@ async def tts_handle(req: dict):
         return JSONResponse(status_code=400, content={"message": "tts failed", "Exception": str(e)})
 
 
-@router.get("/control")
-async def control(command: str = None):
-    if command is None:
-        return JSONResponse(status_code=400, content={"message": "command is required"})
-    handle_control(command)
-
-
 @router.get("/tts")
 async def tts_get_endpoint(
-    text: str = None,
-    text_lang: str = None,
-    ref_audio_path: str = None,
-    aux_ref_audio_paths: list = None,
-    prompt_lang: str = None,
-    prompt_text: str = "",
-    top_k: int = 5,
-    top_p: float = 1,
-    temperature: float = 1,
-    text_split_method: str = "cut0",
-    batch_size: int = 1,
-    batch_threshold: float = 0.75,
-    split_bucket: bool = True,
-    speed_factor: float = 1.0,
-    fragment_interval: float = 0.3,
-    seed: int = -1,
-    media_type: str = "wav",
-    streaming_mode: bool = False,
-    parallel_infer: bool = True,
-    repetition_penalty: float = 1.35,
-    sample_steps: int = 32,
-    super_sampling: bool = False,
+    text: str | None = Query(None, description="Text to be synthesized"),
+    text_lang: str | None = Query(
+        None, description="Language of the text to be synthesized"),
+    ref_audio_path: str | None = Query(
+        None, description="Reference audio path"),
+    aux_ref_audio_paths: list[str] | None = Query(
+        None, description="Auxiliary reference audio paths for multi-speaker synthesis"),
+    prompt_lang: str | None = Query(
+        None, description="Language of the prompt text for the reference audio"),
+    prompt_text: str = Query(
+        "", description="Prompt text for the reference audio"),
+    top_k: int = Query(5, description="Top k sampling"),
+    top_p: float = Query(1.0, description="Top p sampling"),
+    temperature: float = Query(1.0, description="Temperature for sampling"),
+    text_split_method: str = Query("cut0", description="Text split method"),
+    batch_size: int = Query(1, description="Batch size for inference"),
+    batch_threshold: float = Query(
+        0.75, description="Threshold for batch splitting"),
+    split_bucket: bool = Query(
+        True, description="Whether to split the batch into multiple buckets"),
+    speed_factor: float = Query(
+        1.0, description="Control the speed of the synthesized audio"),
+    fragment_interval: float = Query(
+        0.3, description="Control the interval of the audio fragment"),
+    seed: int = Query(-1, description="Random seed for reproducibility"),
+    media_type: str = Query(
+        "wav", description="Media type of the output audio, support wav, raw, ogg, aac"),
+    streaming_mode: bool = Query(
+        False, description="Whether to return a streaming response"),
+    parallel_infer: bool = Query(
+        True, description="Whether to use parallel inference"),
+    repetition_penalty: float = Query(
+        1.35, description="Repetition penalty for T2S model"),
+    sample_steps: int = Query(
+        32, description="Number of sampling steps for VITS model V3"),
+    super_sampling: bool = Query(
+        False, description="Whether to use super-sampling for audio when using VITS model V3"),
+    tts_pipeline: TTS = Depends(get_tts_pipeline)
 ):
     req = {
         "text": text,
@@ -452,70 +320,19 @@ async def tts_get_endpoint(
         "sample_steps": int(sample_steps),
         "super_sampling": super_sampling,
     }
-    return await tts_handle(req)
+    return await tts_handle(req, tts_pipeline)
 
 
 @router.post("/tts")
-async def tts_post_endpoint(request: TTS_Request):
-    req = request.dict()
-    return await tts_handle(req)
-
-
-@router.get("/set_refer_audio")
-async def set_refer_aduio(refer_audio_path: str = None):
-    try:
-        tts_pipeline.set_ref_audio(refer_audio_path)
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"message": "set refer audio failed", "Exception": str(e)})
-    return JSONResponse(status_code=200, content={"message": "success"})
-
-
-@router.post("/set_refer_audio")
-async def set_refer_aduio_post(audio_file: UploadFile = File(...)):
-    try:
-        # 检查文件类型，确保是音频文件
-        if not audio_file.content_type.startswith("audio/"):
-            return JSONResponse(status_code=400, content={"message": "file type is not supported"})
-
-        os.makedirs("uploaded_audio", exist_ok=True)
-        save_path = os.path.join("uploaded_audio", audio_file.filename)
-        # 保存音频文件到服务器上的一个目录
-        with open(save_path, "wb") as buffer:
-            buffer.write(await audio_file.read())
-
-        tts_pipeline.set_ref_audio(save_path)
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"message": f"set refer audio failed", "Exception": str(e)})
-    return JSONResponse(status_code=200, content={"message": "success"})
-
-
-@router.get("/set_gpt_weights")
-async def set_gpt_weights(weights_path: str = None):
-    try:
-        if weights_path in ["", None]:
-            return JSONResponse(status_code=400, content={"message": "gpt weight path is required"})
-        tts_pipeline.init_t2s_weights(weights_path)
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"message": "change gpt weight failed", "Exception": str(e)})
-
-    return JSONResponse(status_code=200, content={"message": "success"})
-
-
-@router.get("/set_sovits_weights")
-async def set_sovits_weights(weights_path: str = None):
-    try:
-        if weights_path in ["", None]:
-            return JSONResponse(status_code=400, content={"message": "sovits weight path is required"})
-        tts_pipeline.init_vits_weights(weights_path)
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"message": "change sovits weight failed", "Exception": str(e)})
-    return JSONResponse(status_code=200, content={"message": "success"})
+async def tts_post_endpoint(request: TTS_Request,
+                            tts_pipeline: TTS = Depends(get_tts_pipeline)):
+    req = request.model_dump()
+    return await tts_handle(req, tts_pipeline)
 
 
 @router.post('/asr')
-async def asr_endpoint(audio_file: UploadFile = File(...)):
-
-    global whisper_handler
+async def asr_endpoint(audio_file: UploadFile = File(...),
+                       whisper_handler: Whisper = Depends(get_whisper_handler)):
 
     config = VioletConfig.get_config()
     file_storage_path = config.file_storage_path
@@ -527,37 +344,7 @@ async def asr_endpoint(audio_file: UploadFile = File(...)):
         f.write(data)
 
     try:
-        if whisper_handler is None:
-            _set_whisper()
-
         text, language = whisper_handler.rec(file_path)
         return JSONResponse(status_code=200, content={"data": {"text": text, "language": language}})
     except Exception as e:
         return JSONResponse(status_code=500, content={"message": "ASR failed", "Exception": str(e)})
-
-
-def _set_tts_pipeline():
-    global tts_pipeline
-    global tts_config
-
-    from violet.constants import VIOLET_DIR
-
-    config_path = VIOLET_DIR + "/tts_infer.yaml"
-    tts_config = TTS_Config(config_path)
-    tts_pipeline = TTS(tts_config)
-
-    log_telemetry(
-        logger=logger,
-        event="initialize",
-        **{"module": "tts", "status": "successful"})
-
-
-def _set_whisper():
-    global whisper_handler
-
-    whisper_handler = Whisper()
-
-    log_telemetry(
-        logger=logger,
-        event="initialize",
-        **{"module": "whisper", "status": "successful"})

@@ -1,10 +1,11 @@
+import gc
 import os
 import threading
 from typing import Tuple
 from faster_whisper import WhisperModel
-from violet.config import VioletConfig
 from violet.log import get_logger
 from violet.utils.utils import log_telemetry
+from violet.schemas.whisper_config import WhisperConfig
 
 logger = get_logger(__name__)
 
@@ -13,14 +14,11 @@ local_whisper_model = None
 
 
 def _load_whisper_model(model_path):
-
     global local_whisper_model
 
     with model_lock:
-
-        if local_whisper_model is None:
-            local_whisper_model = WhisperModel(str(model_path),
-                                               device="cpu", compute_type="int8")
+        local_whisper_model = WhisperModel(str(model_path),
+                                           device="cpu", compute_type="int8")
 
         return local_whisper_model
 
@@ -28,29 +26,38 @@ def _load_whisper_model(model_path):
 class Whisper:
 
     model: WhisperModel = None
+    config: WhisperConfig = None
 
-    def __init__(self):
+    def __init__(self, config: WhisperConfig):
+        engine = config.engine
+
+        if engine != 'whisper':
+            raise ValueError(f"Unsupported engine: {engine}")
+
         if local_whisper_model is not None:
             self.model = local_whisper_model
+
         else:
-            # load local model
-            config = VioletConfig.get_config()
-            model_storage_path = config.model_storage_path
-            whisper_model_path = os.path.join(model_storage_path, 'whisper')
+            self.set_whisper_model(config)
 
-            if not os.path.exists(whisper_model_path):
-                # download whisper model from huggingface
-                log_telemetry(logger=logger, event='download_model',
-                              **{"model": "whisper tiny model", "path": whisper_model_path})
+    def set_whisper_model(self, config: WhisperConfig):
+        self.config = config
 
-                import faster_whisper
-                faster_whisper.download("tiny", whisper_model_path)
+        whisper_model_path = config.get_model_path()
 
-            # load whisper model
-            log_telemetry(logger=logger, event='load_model',
+        if not os.path.exists(whisper_model_path):
+            # download whisper model from huggingface
+            log_telemetry(logger=logger, event='download_model',
                           **{"model": "whisper tiny model", "path": whisper_model_path})
 
-            self.model = _load_whisper_model(whisper_model_path)
+            import faster_whisper
+            faster_whisper.download("tiny", whisper_model_path)
+
+        # load whisper model
+        log_telemetry(logger=logger, event='load_model',
+                      **{"model": "whisper tiny model", "path": whisper_model_path})
+
+        self.model = _load_whisper_model(whisper_model_path)
 
     def rec(self, audio_path: str) -> Tuple[str, str]:
         """
@@ -79,3 +86,10 @@ class Whisper:
             texts.append(segment.text)
 
         return "".join(texts), info.language
+
+    def close(self):
+        global local_whisper_model
+
+        if local_whisper_model is not None:
+            del local_whisper_model
+            gc.collect()

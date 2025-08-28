@@ -97,20 +97,22 @@ def load_embedding_model(embedding_config: EmbeddingConfig, enforce_load: bool =
 
 def uninstall_model():
     global local_foundation_model
+    global model_lock
 
-    if local_foundation_model is not None:
-        del local_foundation_model
-
-    gc.collect()
+    with model_lock:
+        if local_foundation_model is not None:
+            del local_foundation_model
+            gc.collect()
 
 
 def uninstall_embedding_model():
     global local_embedding_model
+    global model_lock
 
-    if local_embedding_model is not None:
-        del local_embedding_model
-
-    gc.collect()
+    with model_lock:
+        if local_embedding_model is not None:
+            del local_embedding_model
+            gc.collect()
 
 
 def uninstall_all():

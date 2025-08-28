@@ -7,74 +7,28 @@ import yaml
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Tuple
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
 import queue
-import violet
 from violet.agent.agent_wrapper import AgentWrapper
 from violet.config import VioletConfig
-from violet.interface import QueuingInterface
 from violet.log import get_logger
+from violet.server.context import close, get_agent, get_server, get_tts_pipeline, setup
 from violet.server.server import SyncServer
-from violet.utils.utils import log_telemetry
-from violet.voice.api import TTS_Request, router as VoiceRouter
-from violet.voice.api import setup as voice_setup, shutdown_gracefully as voice_shutdown
-from violet.voice.api import tts_handle
+from violet.utils.file import get_absolute_path
+from violet.voice.TTS_infer_pack.TTS import TTS
 from violet.voice.whisper.whisper import Whisper
 
 from violet.server.router.file import router as FileRouter
 from violet.server.router.persona import router as PersonaRouter
 from violet.server.router.config import router as ConfigRouter
 from violet.server.router.agents import router as AgentsRouter
-
-"""
-VOICE RECORDING STRATEGY & ARCHITECTURE:
-
-Current Implementation:
-- Frontend records audio in 5-second chunks (CHUNK_DURATION = 5000ms)
-- Chunks are accumulated locally until a screenshot is sent
-- Raw voice files are sent to the agent for accumulation and processing
-- Agent accumulates voice files alongside images until TEMPORARY_MESSAGE_LIMIT is reached
-- Voice processing happens in agent.absorb_content_into_memory()
-
-Recommended Alternative Strategy:
-Instead of 5-second chunks, you can:
-1. Send 1-second micro-chunks to reduce latency
-2. Agent accumulates chunks until TEMPORARY_MESSAGE_LIMIT is reached
-3. This aligns perfectly with how images are accumulated in agent.py
-
-Benefits of 1-second chunks:
-- Lower latency for real-time feedback
-- More granular control over audio processing
-- Better alignment with the existing image accumulation pattern
-- Smoother user experience
-- Voice processing happens in batches during memory absorption
-
-Implementation changes needed:
-- Frontend: Change CHUNK_DURATION from 5000 to 1000
-- Agent: Handles voice file accumulation and processing during memory absorption
-- Server: Passes raw voice files to agent without processing
-
-FFPROBE WARNING:
-The warning about ffprobe/avprobe is harmless and expected if FFmpeg isn't in your system PATH.
-To fix it, install FFmpeg:
-- Windows: Download from https://ffmpeg.org and add to PATH
-- macOS: brew install ffmpeg
-- Linux: sudo apt install ffmpeg
-
-The warning doesn't affect functionality as pydub falls back gracefully.
-"""
+from violet.server.router.voice import TTS_Request, router as VoiceRouter, tts_handle
 
 logger = get_logger(__name__)
-
-# Global agent instance
-agent = None
-
-interface = QueuingInterface(debug=violet.utils.utils.DEBUG)
-server = SyncServer(default_interface_factory=lambda: interface)
 
 
 @asynccontextmanager
@@ -82,35 +36,11 @@ async def lifespan(app: FastAPI):
 
     VioletConfig.setup()
 
-    await setup()
-    await voice_setup()
+    setup()
 
     yield
 
-    await graceful_shutdown()
-
-
-async def setup():
-    global agent
-
-    llm_config = VioletConfig.get_config().get_llm_config()
-    embedding_config = VioletConfig.get_config().get_embedding_config()
-    agent = AgentWrapper(llm_config, embedding_config)
-
-    log_telemetry(
-        logger=logger,
-        event="initialize",
-        **{"module": "agent", "status": "successful"})
-
-
-async def graceful_shutdown():
-    global agent
-
-    if agent:
-        agent.close()
-
-    # shutdown resource voice
-    voice_shutdown()
+    await close()
 
 
 app = FastAPI(title="Violet API",
@@ -366,7 +296,7 @@ class ReflexionResponse(BaseModel):
 
 
 @app.get("/health")
-async def health_check():
+async def health_check(agent: AgentWrapper = Depends(get_agent)):
     """Health check endpoint for monitoring server status"""
     return {
         "status": "healthy",
@@ -376,7 +306,8 @@ async def health_check():
 
 
 @app.post("/send_message")
-async def send_message_endpoint(request: MessageRequest):
+async def send_message_endpoint(request: MessageRequest,
+                                agent: AgentWrapper = Depends(get_agent)):
     """Send a message to the agent and get the response"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -445,7 +376,8 @@ async def send_message_endpoint(request: MessageRequest):
 
 
 @app.post("/send_streaming_message")
-async def send_streaming_message_endpoint(request: MessageRequest):
+async def send_streaming_message_endpoint(request: MessageRequest,
+                                          agent: AgentWrapper = Depends(get_agent)):
     """Send a message to the agent and stream intermediate messages and final response"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -651,7 +583,7 @@ async def send_streaming_message_endpoint(request: MessageRequest):
 
 
 @app.get("/personas", response_model=PersonaDetailsResponse)
-async def get_personas():
+async def get_personas(agent: AgentWrapper = Depends(get_agent)):
     """Get all personas with their details (name and text)"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -665,7 +597,8 @@ async def get_personas():
 
 
 @app.post("/personas/update", response_model=UpdatePersonaResponse)
-async def update_persona(request: UpdatePersonaRequest):
+async def update_persona(request: UpdatePersonaRequest,
+                         agent: AgentWrapper = Depends(get_agent)):
     """Update the agent's core memory persona text"""
 
     if agent is None:
@@ -679,7 +612,8 @@ async def update_persona(request: UpdatePersonaRequest):
 
 
 @app.post("/personas/apply_template", response_model=UpdatePersonaResponse)
-async def apply_persona_template(request: ApplyPersonaTemplateRequest):
+async def apply_persona_template(request: ApplyPersonaTemplateRequest,
+                                 agent: AgentWrapper = Depends(get_agent)):
     """Apply a persona template to the agent"""
 
     if agent is None:
@@ -693,7 +627,8 @@ async def apply_persona_template(request: ApplyPersonaTemplateRequest):
 
 
 @app.post("/core_memory/update", response_model=UpdateCoreMemoryResponse)
-async def update_core_memory(request: UpdateCoreMemoryRequest):
+async def update_core_memory(request: UpdateCoreMemoryRequest,
+                             agent: AgentWrapper = Depends(get_agent)):
     """Update a specific core memory block with new text"""
 
     if agent is None:
@@ -707,7 +642,7 @@ async def update_core_memory(request: UpdateCoreMemoryRequest):
 
 
 @app.get("/personas/core_memory", response_model=CoreMemoryPersonaResponse)
-async def get_core_memory_persona():
+async def get_core_memory_persona(agent: AgentWrapper = Depends(get_agent)):
     """Get the core memory persona text"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -721,7 +656,7 @@ async def get_core_memory_persona():
 
 
 @app.get("/models/current", response_model=GetCurrentModelResponse)
-async def get_current_model():
+async def get_current_model(agent: AgentWrapper = Depends(get_agent)):
     """Get the current model being used by the agent"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -735,7 +670,8 @@ async def get_current_model():
 
 
 @app.post("/models/set", response_model=SetModelResponse)
-async def set_model(request: SetModelRequest):
+async def set_model(request: SetModelRequest,
+                    agent: AgentWrapper = Depends(get_agent)):
     """Set the model for the agent"""
 
     if agent is None:
@@ -785,7 +721,7 @@ async def set_model(request: SetModelRequest):
 
 
 @app.get("/models/memory/current", response_model=GetCurrentModelResponse)
-async def get_current_memory_model():
+async def get_current_memory_model(agent: AgentWrapper = Depends(get_agent)):
     """Get the current model being used by the memory manager"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -799,7 +735,8 @@ async def get_current_memory_model():
 
 
 @app.post("/models/memory/set", response_model=SetModelResponse)
-async def set_memory_model(request: SetModelRequest):
+async def set_memory_model(request: SetModelRequest,
+                           agent: AgentWrapper = Depends(get_agent)):
     """Set the model for the memory manager"""
 
     if agent is None:
@@ -849,7 +786,8 @@ async def set_memory_model(request: SetModelRequest):
 
 
 @app.post("/models/custom/add", response_model=AddCustomModelResponse)
-async def add_custom_model(request: AddCustomModelRequest):
+async def add_custom_model(request: AddCustomModelRequest,
+                           agent: AgentWrapper = Depends(get_agent)):
     """Add a custom model configuration"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -926,7 +864,7 @@ async def list_custom_models():
 
 
 @app.get("/timezone/current", response_model=GetTimezoneResponse)
-async def get_current_timezone():
+async def get_current_timezone(agent: AgentWrapper = Depends(get_agent)):
     """Get the current timezone of the agent"""
 
     if agent is None:
@@ -942,7 +880,8 @@ async def get_current_timezone():
 
 
 @app.post("/timezone/set", response_model=SetTimezoneResponse)
-async def set_timezone(request: SetTimezoneRequest):
+async def set_timezone(request: SetTimezoneRequest,
+                       agent: AgentWrapper = Depends(get_agent)):
     """Set the timezone for the agent"""
 
     if agent is None:
@@ -956,7 +895,7 @@ async def set_timezone(request: SetTimezoneRequest):
 
 
 @app.get("/screenshot_setting", response_model=ScreenshotSettingResponse)
-async def get_screenshot_setting():
+async def get_screenshot_setting(agent: AgentWrapper = Depends(get_agent)):
     """Get the current screenshot setting"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -969,7 +908,8 @@ async def get_screenshot_setting():
 
 
 @app.post("/screenshot_setting/set", response_model=ScreenshotSettingResponse)
-async def set_screenshot_setting(request: ScreenshotSettingRequest):
+async def set_screenshot_setting(request: ScreenshotSettingRequest,
+                                 agent: AgentWrapper = Depends(get_agent)):
     """Set whether to include recent screenshots in messages"""
 
     if agent is None:
@@ -992,7 +932,7 @@ async def set_screenshot_setting(request: ScreenshotSettingRequest):
 
 
 @app.get("/api_keys/check", response_model=ApiKeyCheckResponse)
-async def check_api_keys():
+async def check_api_keys(agent: AgentWrapper = Depends(get_agent)):
     """Check for missing API keys based on current agent configuration"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1013,7 +953,8 @@ async def check_api_keys():
 
 
 @app.post("/api_keys/update", response_model=ApiKeyUpdateResponse)
-async def update_api_key(request: ApiKeyRequest):
+async def update_api_key(request: ApiKeyRequest,
+                         agent: AgentWrapper = Depends(get_agent)):
     """Update an API key value"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1102,7 +1043,7 @@ def _save_api_key_to_env_file(key_name: str, api_key: str):
 
 
 @app.get("/memory/episodic")
-async def get_episodic_memory():
+async def get_episodic_memory(agent: AgentWrapper = Depends(get_agent)):
     """Get episodic memory (past events)"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1141,7 +1082,7 @@ async def get_episodic_memory():
 
 
 @app.get("/memory/semantic")
-async def get_semantic_memory():
+async def get_semantic_memory(agent: AgentWrapper = Depends(get_agent)):
     """Get semantic memory (knowledge)"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1179,7 +1120,7 @@ async def get_semantic_memory():
 
 
 @app.get("/memory/procedural")
-async def get_procedural_memory():
+async def get_procedural_memory(agent: AgentWrapper = Depends(get_agent)):
     """Get procedural memory (skills and procedures)"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1235,7 +1176,7 @@ async def get_procedural_memory():
 
 
 @app.get("/memory/resources")
-async def get_resource_memory():
+async def get_resource_memory(agent: AgentWrapper = Depends(get_agent)):
     """Get resource memory (docs and files)"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1272,7 +1213,7 @@ async def get_resource_memory():
 
 
 @app.get("/memory/core")
-async def get_core_memory():
+async def get_core_memory(agent: AgentWrapper = Depends(get_agent)):
     """Get core memory (understanding of user)"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1310,7 +1251,7 @@ async def get_core_memory():
 
 
 @app.get("/memory/credentials")
-async def get_credentials_memory():
+async def get_credentials_memory(agent: AgentWrapper = Depends(get_agent)):
     """Get credentials memory (knowledge vault with masked content)"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1347,7 +1288,7 @@ async def get_credentials_memory():
 
 
 @app.post("/conversation/clear", response_model=ClearConversationResponse)
-async def clear_conversation_history():
+async def clear_conversation_history(agent: AgentWrapper = Depends(get_agent)):
     """Permanently clear all conversation history for the current agent (memories are preserved)"""
     try:
         if agent is None:
@@ -1382,7 +1323,8 @@ async def clear_conversation_history():
 
 
 @app.post("/export/memories", response_model=ExportMemoriesResponse)
-async def export_memories(request: ExportMemoriesRequest):
+async def export_memories(request: ExportMemoriesRequest,
+                          agent: AgentWrapper = Depends(get_agent)):
     """Export memories to Excel file with separate sheets for each memory type"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1413,7 +1355,8 @@ async def export_memories(request: ExportMemoriesRequest):
 
 
 @app.post("/reflexion", response_model=ReflexionResponse)
-async def trigger_reflexion(request: ReflexionRequest):
+async def trigger_reflexion(request: ReflexionRequest,
+                            agent: AgentWrapper = Depends(get_agent)):
     """Trigger reflexion agent to reorganize memory - runs in separate thread to not block other requests"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
@@ -1452,7 +1395,10 @@ async def trigger_reflexion(request: ReflexionRequest):
 async def pipeline_chat(
         text: str = Query(),
         streaming_mode: bool = Query(True),
-        media_type: str = Query("wav")):
+        media_type: str = Query("wav"),
+        agent: AgentWrapper = Depends(get_agent),
+        server: SyncServer = Depends(get_server),
+        tts_pipeline: TTS = Depends(get_tts_pipeline)):
 
     async def _chat(text):
         return agent.chat(message=text)
@@ -1465,7 +1411,7 @@ async def pipeline_chat(
         tts_request.text_lang = 'ja'
 
         personas = server.persona_manager.personas
-        ref_audio_path = VioletConfig.get_absolute_path(
+        ref_audio_path = get_absolute_path(
             personas.r_path, personas.config.ref_audio)
         tts_request.ref_audio_path = ref_audio_path
         tts_request.prompt_lang = personas.config.prompt_lang
@@ -1474,7 +1420,7 @@ async def pipeline_chat(
 
         tts_request.media_type = media_type
 
-        return await tts_handle({"text": output, **tts_request.model_dump()})
+        return await tts_handle({"text": output, **tts_request.model_dump()}, tts_pipeline)
     except Exception as e:
         logger.error(f"Error in pipeline_chat endpoint: {str(e)}")
         raise HTTPException(
@@ -1485,7 +1431,10 @@ async def pipeline_chat(
 async def pipeline(
         audio_file: UploadFile = File(...),
         streaming_mode: bool = Query(True),
-        media_type: str = Query("wav")):
+        media_type: str = Query("wav"),
+        agent: AgentWrapper = Depends(get_agent),
+        server: SyncServer = Depends(get_server),
+        tts_pipeline: TTS = Depends(get_tts_pipeline)):
 
     async def _asr() -> Tuple[str, str]:
         config = VioletConfig.get_config()
@@ -1516,7 +1465,7 @@ async def pipeline(
         tts_request.text = output
         tts_request.text_lang = 'ja'
 
-        personas = persona_manager.personas
+        personas = server.persona_manager.personas
         ref_audio_path = personas.get_absolute_for(personas.config.ref_audio)
         tts_request.ref_audio_path = ref_audio_path
         tts_request.prompt_lang = personas.config.prompt_lang
@@ -1525,7 +1474,7 @@ async def pipeline(
 
         tts_request.media_type = media_type
 
-        return await tts_handle({"text": output, **tts_request.model_dump()})
+        return await tts_handle({"text": output, **tts_request.model_dump()}, tts_pipeline)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Pipeline processing failed: {str(e)}")
@@ -1556,4 +1505,11 @@ def _run_reflexion_process(agent):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=10890)
+    from violet.settings import settings
+
+    uvicorn.run(app,
+                host="0.0.0.0",
+                port=10890,
+                workers=settings.uvicorn_workers,
+                reload=settings.uvicorn_reload,
+                timeout_keep_alive=settings.uvicorn_timeout_keep_alive,)

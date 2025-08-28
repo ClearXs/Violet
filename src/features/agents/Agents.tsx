@@ -4,11 +4,11 @@ import { DataTable } from './components/data-table';
 import React, { useEffect } from 'react';
 import useColumns from './components/columns';
 import useAgentStore from './store';
-import { toast } from '@/hooks/use-toast';
 import useAgentApi from '@/services/agents';
 import { Filter } from '@/services/type';
 import AgentPrimaryButtons from './components/agent-primary-buttons';
 import AgentDialogs from './components/agent-dialogs';
+import { toast } from 'sonner';
 
 type AgentTableProps = {
   tags?: string[];
@@ -59,20 +59,10 @@ export default function AgentTable({ tags }: AgentTableProps) {
           setData(paginatedData);
           setTotal(res.data.length);
         } else {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: res.msg || 'Failed to load agents',
-          });
+          toast.error(`Failed to load agents`);
         }
       })
-      .catch((err) =>
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.message || 'Failed to load agents',
-        })
-      )
+      .catch((err) => toast.error(err.message || 'Failed to load agents'))
       .finally(() => setLoading(false));
   }, [
     pagination.pageIndex,

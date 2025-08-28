@@ -14,11 +14,14 @@ from violet.constants import (
 from violet.log import get_logger
 from violet.schemas.embedding_config import EmbeddingConfig
 from violet.schemas.llm_config import LLMConfig
+from violet.schemas.tts_config import TTS_Config
+from violet.schemas.whisper_config import WhisperConfig
 
 logger = get_logger(__name__)
 
-
 # helper functions for writing to configs
+
+
 def get_field(config, section, field):
     if section not in config:
         return None
@@ -49,6 +52,7 @@ class VioletConfig:
     config_path = os.path.join(base_path, "config.yaml")
     embedding_config_path = os.path.join(base_path, "embedding_config.yaml")
     tts_config_path = os.path.join(base_path, "tts_infer.yaml")
+    whisper_config_path = os.path.join(base_path, 'whisper.yaml')
 
     # preset
     preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
@@ -166,56 +170,6 @@ class VioletConfig:
 
         return config
 
-    def get_llm_config(self) -> LLMConfig:
-        """
-        Get violet path config.yaml (.violet/config.yaml) configuration file and convert to "LLMConfig"
-        """
-
-        import yaml
-
-        if os.path.exists(self.config_path) is False:
-            llm_config = LLMConfig.default_config('gpt-4')
-
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(
-                    llm_config.to_dict(),
-                    f,
-                    allow_unicode=True,
-                    indent=2,
-                    sort_keys=True)
-
-            return llm_config
-
-        with open(self.config_path, "r") as f:
-            agent_config = yaml.safe_load(f)
-
-        return LLMConfig.model_validate(agent_config)
-
-    def get_embedding_config(self) -> EmbeddingConfig:
-        """
-            Get violet path embedding_config.yaml (.violet/embedding_config.yaml) configuration file and convert to "EmbeddingConfig"
-        """
-        import yaml
-
-        if os.path.exists(self.embedding_config_path) is False:
-            embedding_config = EmbeddingConfig.default_config(
-                'text-embedding-3-small')
-
-            with open(self.embedding_config_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(
-                    embedding_config.to_dict(),
-                    f,
-                    allow_unicode=True,
-                    indent=2,
-                    sort_keys=True)
-
-            return embedding_config
-
-        with open(self.embedding_config_path, "r") as f:
-            agent_config = yaml.safe_load(f)
-
-        return EmbeddingConfig.model_validate(agent_config)
-
     def save(self):
         import violet
 
@@ -304,19 +258,86 @@ class VioletConfig:
         return config
 
     @staticmethod
-    def get_relative_path(absolute_path: str) -> str:
-        """Get the relative path from the violet directory."""
-        return os.path.relpath(absolute_path, VIOLET_DIR)
+    def get_llm_config() -> LLMConfig:
+        """
+        Get violet path config.yaml (.violet/config.yaml) configuration file and convert to "LLMConfig"
+        """
+
+        import yaml
+
+        if os.path.exists(VioletConfig.config_path) is False:
+            llm_config = LLMConfig.default_config('gpt-4')
+
+            with open(VioletConfig.config_path, "w", encoding="utf-8") as f:
+                yaml.safe_dump(
+                    llm_config.to_dict(),
+                    f,
+                    allow_unicode=True,
+                    indent=2,
+                    sort_keys=True)
+
+            return llm_config
+
+        with open(VioletConfig.config_path, "r") as f:
+            agent_config = yaml.safe_load(f)
+
+        return LLMConfig.model_validate(agent_config)
 
     @staticmethod
-    def get_absolute_path(path: str, *p) -> str:
+    def get_embedding_config() -> EmbeddingConfig:
         """
-        Convert a relative file path to an absolute file path.
+        Get violet path embedding_config.yaml (.violet/embedding_config.yaml) configuration file and convert to "EmbeddingConfig"
         """
-        file_path = path
-        if path.startswith(VioletConfig.base_path):
-            file_path = path
-        else:
-            file_path = os.path.join(VioletConfig.base_path, file_path)
+        import yaml
 
-        return os.path.join(file_path, *p)
+        if os.path.exists(VioletConfig.embedding_config_path) is False:
+            embedding_config = EmbeddingConfig.default_config(
+                'text-embedding-3-small')
+
+            with open(VioletConfig.embedding_config_path, "w", encoding="utf-8") as f:
+                yaml.safe_dump(
+                    embedding_config.to_dict(),
+                    f,
+                    allow_unicode=True,
+                    indent=2,
+                    sort_keys=True)
+
+            return embedding_config
+
+        with open(VioletConfig.embedding_config_path, "r") as f:
+            embedding_config = yaml.safe_load(f)
+
+        return EmbeddingConfig.model_validate(embedding_config)
+
+    @staticmethod
+    def get_tts_config() -> TTS_Config:
+        """
+        Get violet path tts_infer.yaml (.violet/tts_infer.yaml) configuration file and convert to "TTS_Config"
+        """
+
+        return TTS_Config(VioletConfig.tts_config_path)
+
+    @staticmethod
+    def get_whisper_config() -> WhisperConfig:
+        """
+        Get violet path whisper.yaml (.violet/whisper.yaml) configuration file and convert to "WhisperConfig"
+        """
+        import yaml
+
+        if os.path.exists(VioletConfig.violet_config_path) is False:
+            whisper_config = WhisperConfig.default_config()
+
+            with open(VioletConfig.whisper_config_path, "w", encoding="utf-8") as f:
+                yaml.safe_dump(
+                    whisper_config.to_dict(),
+                    f,
+                    allow_unicode=True,
+                    indent=2,
+                    sort_keys=True)
+
+            return whisper_config
+
+        with open(VioletConfig.whisper_config_path, "r") as f:
+            whisper_config = yaml.safe_load(f)
+
+        return WhisperConfig.model_validate(whisper_config)

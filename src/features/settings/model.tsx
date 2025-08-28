@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import useConfigApi, { LLMConfig } from '@/services/config';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -29,56 +28,29 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import ContentSection from './components/content-section';
 import { Loader2, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
 const llmConfigSchema = z.object({
   model: z.string().min(1, {
     message: 'Model name is required.',
   }),
   model_endpoint_type: z
-    .enum([
-      'openai',
-      'anthropic',
-      'cohere',
-      'google_ai',
-      'google_vertex',
-      'azure_openai',
-      'groq',
-      'ollama',
-      'webui',
-      'webui-legacy',
-      'lmstudio',
-      'lmstudio-legacy',
-      'lmstudio-chatcompletions',
-      'llamacpp',
-      'koboldcpp',
-      'vllm',
-      'hugging-face',
-      'together',
-      'bedrock',
-      'deepseek',
-      'xai',
-      'mistral',
-      'llama',
-      'mlx-vlm',
-    ])
+    .enum(['openai', 'ollama', 'llama', 'mlx-vlm'])
     .optional(),
-  model_endpoint: z.string().url().optional().or(z.literal('')),
-  mmproj_model: z.string().optional(),
-  model_wrapper: z.string().optional(),
+  model_endpoint: z.string().url().nullable().optional().or(z.literal('')),
+  mmproj_model: z.string().nullable().optional(),
+  model_wrapper: z.string().nullable().optional(),
   context_window: z.number().min(1, {
     message: 'Context window must be at least 1.',
   }),
   put_inner_thoughts_in_kwargs: z.boolean().optional(),
-  handle: z.string().optional(),
-  temperature: z.number().min(0).max(2),
-  max_tokens: z.number().min(1).optional(),
-  enable_reasoner: z.boolean().optional(),
-  reasoning_effort: z.enum(['low', 'medium', 'high']).optional(),
-  max_reasoning_tokens: z.number().min(0).optional(),
-  api_key: z.string().optional(),
-  api_version: z.string().optional(),
-  azure_endpoint: z.string().url().optional().or(z.literal('')),
-  azure_deployment: z.string().optional(),
+  handle: z.string().nullable().optional(),
+  temperature: z.number().min(0).max(1).nullable().optional(),
+  max_tokens: z.number().min(1).nullable().optional(),
+  enable_reasoner: z.boolean().nullable().optional(),
+  reasoning_effort: z.enum(['low', 'medium', 'high']).nullable().optional(),
+  max_reasoning_tokens: z.number().min(0).nullable().optional(),
+  api_key: z.string().nullable().optional(),
 });
 
 type LLMConfigFormValues = z.infer<typeof llmConfigSchema>;
@@ -86,40 +58,36 @@ type LLMConfigFormValues = z.infer<typeof llmConfigSchema>;
 export default function SettingsModel() {
   const configApi = useConfigApi();
   const [llmConfig, setLlmConfig] = useState<LLMConfig>();
-  const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LLMConfigFormValues>({
     resolver: zodResolver(llmConfigSchema),
     mode: 'onChange',
+    values: llmConfig,
   });
 
   useEffect(() => {
-    configApi.getLLMConfig().then((res) => {
-      res.code === 200 && setLlmConfig(res.data);
-    });
+    configApi
+      .getLLMConfig()
+      .then((data) => setLlmConfig(data))
+      .catch((error) =>
+        toast.error(`Failed to load LLM configuration: ${error}`)
+      );
   }, []);
 
   async function onSubmit(data: LLMConfigFormValues) {
     setIsLoading(true);
     try {
-      const res = await configApi.updateLLMConfig(data as LLMConfig);
-      if (res.code === 200) {
-        toast({
-          title: 'Configuration updated successfully!',
-          description: 'LLM configuration has been saved.',
-        });
+      const success = await configApi.updateLLMConfig(data as LLMConfig);
+      if (success) {
+        toast.success('Configuration updated successfully!');
         setLlmConfig(data as LLMConfig);
       } else {
         throw new Error('Failed to update configuration');
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update LLM configuration.',
-        variant: 'destructive',
-      });
+      toast.error(`Failed to update LLM configuration: ${error}`);
     } finally {
       setIsLoading(false);
     }
@@ -128,10 +96,10 @@ export default function SettingsModel() {
   return (
     <ContentSection
       title='Model Configuration'
-      desc='This is how others will see you on the site.'
+      desc='Configure your LLM model settings including provider, parameters, and authentication for AI agent interactions.'
       operation={
         <>
-          <Button type='submit' disabled={isLoading}>
+          <Button onClick={form.handleSubmit(onSubmit)} disabled={isLoading}>
             {isLoading ? (
               <Loader2 className='mr-2 h-4 w-4 animate-spin' />
             ) : (
@@ -149,17 +117,16 @@ export default function SettingsModel() {
         </>
       }
     >
-      <ScrollArea className='flex-1 px-1'>
+      <ScrollArea className='flex-1 px-4'>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
-            {/* Basic Configuration */}
+          <form className='space-y-6'>
             <div className='space-y-4'>
               <FormField
                 control={form.control}
                 name='model'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Model Name</FormLabel>
+                    <FormLabel>Model</FormLabel>
                     <FormControl>
                       <Input placeholder='gpt-4o' {...field} />
                     </FormControl>
@@ -170,7 +137,6 @@ export default function SettingsModel() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name='model_endpoint_type'
@@ -185,16 +151,9 @@ export default function SettingsModel() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value='openai'>OpenAI</SelectItem>
-                        <SelectItem value='anthropic'>Anthropic</SelectItem>
-                        <SelectItem value='azure_openai'>
-                          Azure OpenAI
-                        </SelectItem>
-                        <SelectItem value='groq'>Groq</SelectItem>
                         <SelectItem value='ollama'>Ollama</SelectItem>
-                        <SelectItem value='google_ai'>Google AI</SelectItem>
-                        <SelectItem value='together'>Together</SelectItem>
-                        <SelectItem value='deepseek'>DeepSeek</SelectItem>
-                        <SelectItem value='xai'>xAI</SelectItem>
+                        <SelectItem value='llama'>Llama</SelectItem>
+                        <SelectItem value='mlx-vlm'>MLX-VLM</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
@@ -262,7 +221,7 @@ export default function SettingsModel() {
                     <FormControl>
                       <Slider
                         min={0}
-                        max={2}
+                        max={1}
                         step={0.1}
                         value={[field.value]}
                         onValueChange={(value) => field.onChange(value[0])}
@@ -417,67 +376,6 @@ export default function SettingsModel() {
                 </>
               )}
             </div>
-
-            {/* Azure Configuration */}
-            {form.watch('model_endpoint_type') === 'azure_openai' && (
-              <div className='space-y-4'>
-                <h4 className='text-lg font-semibold'>Azure Configuration</h4>
-
-                <FormField
-                  control={form.control}
-                  name='azure_endpoint'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Azure Endpoint</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder='https://your-resource.openai.azure.com/'
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Your Azure OpenAI resource endpoint.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name='azure_deployment'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Azure Deployment</FormLabel>
-                      <FormControl>
-                        <Input placeholder='gpt-4-deployment' {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        The deployment name in Azure OpenAI.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name='api_version'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>API Version</FormLabel>
-                      <FormControl>
-                        <Input placeholder='2024-10-01-preview' {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        The Azure OpenAI API version.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
 
             {/* API Key */}
             <div className='space-y-4'>

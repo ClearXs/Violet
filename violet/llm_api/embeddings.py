@@ -5,7 +5,7 @@ import numpy as np
 import tiktoken
 
 from violet.constants import EMBEDDING_TO_TOKENIZER_DEFAULT, EMBEDDING_TO_TOKENIZER_MAP, MAX_EMBEDDING_DIM
-from violet.llama import load_embedding_model
+from violet.local_llm import load_embedding_model
 from violet.schemas.embedding_config import EmbeddingConfig
 from violet.utils.utils import is_valid_url, printd
 

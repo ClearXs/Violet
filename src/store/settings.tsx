@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { IconUser } from '@tabler/icons-react';
 import { SidebarNavProps } from '@/components/sidebar-nav';
 
-type SettingKey = 'model' | 'embedding' | 'tts' | 'stt';
+type SettingKey = 'model' | 'embedding' | 'tts' | 'whisper';
 
 const settingItems: SidebarNavProps['items'] = [
   {
@@ -21,8 +21,8 @@ const settingItems: SidebarNavProps['items'] = [
     icon: <IconUser size={18} />,
   },
   {
-    key: 'stt',
-    title: 'STT',
+    key: 'whisper',
+    title: 'Whisper',
     icon: <IconUser size={18} />,
   },
 ];

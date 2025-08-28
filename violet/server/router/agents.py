@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from violet.log import get_logger
 from violet.schemas.agent import AgentState
+from violet.server.context import get_server
 from violet.server.server import SyncServer
-from violet.server.utils import get_server
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
 

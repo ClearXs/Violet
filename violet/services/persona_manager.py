@@ -3,6 +3,7 @@ from violet.config import VioletConfig
 from violet.orm.errors import NoResultFound
 from violet.schemas.personas import Persona as PydanticPersona, PersonaUpdate
 from violet.services.helpers.persona_manager_helper import Personas
+from violet.utils.file import get_relative_path
 from violet.utils.utils import enforce_types
 from violet.schemas.user import User as PydanticUser
 from violet.orm.personas import Persona as PersonaModel
@@ -177,9 +178,9 @@ class PersonaManager:
         persona = PydanticPersona(id=PersonaManager.DEFAULT_PERSONA_ID,
                                   name=PersonaManager.DEFAULT_PERSONA_NAME,
                                   activated=True,
-                                  r_path=VioletConfig.get_relative_path(
+                                  r_path=get_relative_path(
                                       r_path),
-                                  thumb=VioletConfig.get_relative_path(thumb))
+                                  thumb=get_relative_path(thumb))
 
         return self.create_persona(persona=persona, actor=actor)
 

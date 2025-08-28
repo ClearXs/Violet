@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Edit, Trash2, Plus, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import usePersonaApi, { Persona } from '@/services/personas';
 import {
   AlertDialog,
@@ -22,6 +21,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useRouter } from 'next/navigation';
 import { useLayout } from '@/context/layout-context';
+import { toast } from 'sonner';
 
 export type SettingsProfileProps = {};
 
@@ -157,7 +157,7 @@ const PersonaCard = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Persona</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{persona.name}"? This action
+              Are you sure you want to delete '{persona.name}'? This action
               cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -180,7 +180,6 @@ const PersonaCard = ({
 
 export default function SettingsPersonas({ config }: SettingsProfileProps) {
   const personaApi = usePersonaApi();
-  const { toast } = useToast();
 
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [activePersona, setActivePersona] = useState<Persona | null>(null);
@@ -199,11 +198,7 @@ export default function SettingsPersonas({ config }: SettingsProfileProps) {
       setPersonas(personasList);
       setActivePersona(activePersona);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load personas.',
-        variant: 'destructive',
-      });
+      toast.error(`Failed to load personas. ${error}`);
     } finally {
       setLoading(false);
     }
@@ -221,36 +216,23 @@ export default function SettingsPersonas({ config }: SettingsProfileProps) {
         // Deactivate current persona
         await personaApi.deactivatePersona(id);
         setActivePersona(null);
-        toast({
-          title: 'Success',
-          description: 'Persona deactivated successfully.',
-        });
+        toast.success('Persona deactivated successfully.');
       } else {
         // Activate new persona
         await personaApi.activatePersona(id);
         const newActive = personas.find((p) => p.id === id);
         setActivePersona(newActive || null);
-        toast({
-          title: 'Success',
-          description: 'Persona activated successfully.',
-        });
+        toast.success('Persona activated successfully.');
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update persona status.',
-        variant: 'destructive',
-      });
+      toast.error(`Failed to update persona status. ${error}`);
     }
   };
 
   const handleEdit = (persona: Persona) => {
     setEditingPersona(persona);
     // TODO: Open edit dialog/modal
-    toast({
-      title: 'Info',
-      description: `Edit functionality for "${persona.name}" coming soon.`,
-    });
+    toast.info(`Edit functionality for "${persona.name}" coming soon.`);
   };
 
   const handleDelete = async (id: string) => {
@@ -262,16 +244,9 @@ export default function SettingsPersonas({ config }: SettingsProfileProps) {
         setActivePersona(null);
       }
 
-      toast({
-        title: 'Success',
-        description: 'Persona deleted successfully.',
-      });
+      toast.success('Persona deleted successfully.');
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete persona.',
-        variant: 'destructive',
-      });
+      toast.error(`Failed to delete persona. ${error}`);
     }
   };
 

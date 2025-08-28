@@ -7,8 +7,8 @@ from llama_cpp import ChatCompletion, ChatCompletionResponseChoice, CompletionUs
 from violet.constants import INNER_THOUGHTS_KWARG
 from violet.llm_api.helpers import unpack_all_inner_thoughts_from_kwargs
 from violet.llm_api.llm_client_base import LLMClientBase
+from violet.local_llm import load_model
 from violet.log import get_logger
-from violet.mlx import load_model
 from violet.schemas.llm_config import LLMConfig
 from violet.schemas.message import Message
 from violet.schemas.openai.chat_completion_response import ChatCompletionResponse

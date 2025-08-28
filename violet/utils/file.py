@@ -1,37 +1,11 @@
 from datetime import datetime
+import os
 import pathlib
-from typing import List
 from fastapi import UploadFile
-from violet.config import VioletConfig
-
-config = VioletConfig.get_config()
+from violet.constants import VIOLET_DIR
 
 
-async def write_files(files: List[UploadFile] = None) -> List[str]:
-    if len(files) == 0:
-        return []
-
-    paths = []
-    for file in files:
-        path = await _write_file(file, config.file_storage_path)
-        paths.append(path)
-
-    return paths
-
-
-async def write_images(images: List[UploadFile] = None) -> List[str]:
-    if len(images) == 0:
-        return []
-
-    paths = []
-    for image in images:
-        path = await _write_file(image, config.image_storage_path)
-        paths.append(path)
-
-    return paths
-
-
-async def _write_file(file: UploadFile, base_dir: str) -> str:
+async def write_file(file: UploadFile, base_dir: str) -> str:
     """
     Write FastApi file type to local files dir.
     Return:
@@ -53,3 +27,27 @@ async def _write_file(file: UploadFile, base_dir: str) -> str:
         f.write(data)
 
     return file_path.absolute()
+
+
+def get_relative_path(absolute_path: str) -> str:
+    """Get the relative path from the violet directory."""
+    return os.path.relpath(absolute_path, VIOLET_DIR)
+
+
+def get_absolute_path(path: str, *p) -> str:
+    """
+    Convert a relative file path to an absolute file path.
+
+    Examples:
+
+    relevant_path = models/GPT_SoVITS/chinese-hubert-base
+
+    Return /{username}/.violet/models/GPT_SoVITS/chinese-hubert-base
+    """
+    file_path = path
+    if path.startswith(VIOLET_DIR):
+        file_path = path
+    else:
+        file_path = os.path.join(VIOLET_DIR, file_path)
+
+    return os.path.join(file_path, *p)

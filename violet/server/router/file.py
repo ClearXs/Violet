@@ -1,24 +1,44 @@
 import base64
-from pathlib import Path
 import pathlib
 from fastapi import APIRouter, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 
 from violet.config import VioletConfig
-from violet.utils.file import write_files
+from violet.utils.file import get_absolute_path, write_file
 
 router = APIRouter(prefix="/file", tags=["file"])
+config = VioletConfig.get_config()
 
 
 @router.post("/upload")
 async def upload(files: list[UploadFile]):
-    file_paths = await write_files(files)
-    return JSONResponse(status_code=200, content={"data": file_paths})
+    if len(files) == 0:
+        return []
+
+    file_paths = []
+    for file in files:
+        path = await write_file(file, config.file_storage_path)
+        file_paths.append(path)
+
+    return file_paths
+
+
+@router.post('/upload_images')
+async def upload_images(files: list[UploadFile]):
+    if len(files) == 0:
+        return []
+
+    file_paths = []
+    for file in files:
+        path = await write_file(file, config.image_storage_path)
+        file_paths.append(path)
+
+    return file_paths
 
 
 @router.get("/download")
 def download(path: str):
-    file_path = pathlib.Path(VioletConfig.get_absolute_path(path))
+    file_path = pathlib.Path(get_absolute_path(path))
 
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=500, detail="File not found")
@@ -31,7 +51,7 @@ def download(path: str):
 
 @router.get("/download_image")
 def download_image(path: str):
-    file_path = pathlib.Path(VioletConfig.get_absolute_path(path))
+    file_path = pathlib.Path(get_absolute_path(path))
 
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=500, detail="File not found")
@@ -61,7 +81,7 @@ def download_image(path: str):
 
 @router.get("/download_image_base64")
 def download_image_base64(path: str):
-    file_path = pathlib.Path(VioletConfig.get_absolute_path(path))
+    file_path = pathlib.Path(get_absolute_path(path))
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=500, detail="File not found")
 

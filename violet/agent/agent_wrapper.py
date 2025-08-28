@@ -806,20 +806,6 @@ class AgentWrapper:
         """
         self.model_name = llm_config.model
 
-        model_endpoint_type = llm_config.model_endpoint_type
-
-        if force:
-            if model_endpoint_type == 'llama':
-                from violet.llama import load_model, uninstall_model
-
-                uninstall_model()
-                load_model(llm_config=llm_config)
-
-            if model_endpoint_type == 'mlx-vlm':
-                from violet.mlx import load_model
-
-                load_model(llm_config=llm_config)
-
     def set_embedding_model(self, embedding_config: Optional[EmbeddingConfig], force: bool = True) -> None:
         """
         Set the embedding model, if force whether True will be load model 
@@ -827,15 +813,6 @@ class AgentWrapper:
 
         if embedding_config:
             self.embedding_model_name = embedding_config.embedding_model
-
-        if embedding_config and force:
-            embedding_endpoint_type = embedding_config.embedding_endpoint_type
-
-            if embedding_endpoint_type == 'llama':
-                from violet.llama import load_embedding_model, uninstall_embedding_model
-                uninstall_embedding_model()
-
-                load_embedding_model(embedding_config=embedding_config)
 
     def get_current_model(self) -> str:
         """

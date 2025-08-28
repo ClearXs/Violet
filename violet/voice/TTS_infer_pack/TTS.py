@@ -1,7 +1,8 @@
 from violet.voice.TTS_infer_pack.TextPreprocessor import TextPreprocessor
 from violet.voice.TTS_infer_pack.text_segmentation_method import splits
+from violet.schemas.tts_config import TTS_Config, default_tts_configs
 from violet.voice.tools.my_utils import load_audio
-from violet.i18n.i18n import I18nAuto, scan_language_list
+from violet.i18n.i18n import i18n
 from violet.voice.tools.audio_sr import AP_BWE
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 from violet.voice.process_ckpt import get_sovits_version_from_path_fast, load_sovits_new
@@ -11,13 +12,12 @@ from violet.voice.module.mel_processing import mel_spectrogram_torch, spectrogra
 from violet.voice.feature_extractor.cnhubert import CNHubert
 from violet.voice.BigVGAN.bigvgan import BigVGAN
 from violet.voice.AR.models.t2s_lightning_module import Text2SemanticLightningModule
-import yaml
 import torch.nn.functional as F
 import torch
 import numpy as np
 import librosa
 import ffmpeg
-from typing import List, Optional, Tuple, Union
+from typing import List,  Tuple, Union
 import gc
 import math
 import os
@@ -25,7 +25,6 @@ import random
 import sys
 import time
 import traceback
-from copy import deepcopy
 
 import torchaudio
 from tqdm import tqdm
@@ -37,73 +36,9 @@ sys.path.append(now_dir)
 
 violet_config = VioletConfig.get_config()
 
-language = os.environ.get("language", "Auto")
-language = sys.argv[-1] if sys.argv[-1] in scan_language_list() else language
-i18n = I18nAuto(language=language)
-
 
 spec_min = -12
 spec_max = 2
-
-default_tts_configs = {
-    "v1": {
-        "device": "cpu",
-        "is_half": False,
-        "version": "v1",
-        "t2s_weights_path": "GPT_SoVITS/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt",
-        "vits_weights_path": "GPT_SoVITS/s2G488k.pth",
-        "cnhuhbert_base_path": "GPT_SoVITS/chinese-hubert-base",
-        "bert_base_path": "GPT_SoVITS/chinese-roberta-wwm-ext-large",
-    },
-    "v2": {
-        "device": "cpu",
-        "is_half": False,
-        "version": "v2",
-        "t2s_weights_path": "GPT_SoVITS/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt",
-        "vits_weights_path": "GPT_SoVITS/gsv-v2final-pretrained/s2G2333k.pth",
-        "cnhuhbert_base_path": "GPT_SoVITS/chinese-hubert-base",
-        "bert_base_path": "GPT_SoVITS/chinese-roberta-wwm-ext-large",
-    },
-    "v3": {
-        "device": "cpu",
-        "is_half": False,
-        "version": "v3",
-        "t2s_weights_path": "GPT_SoVITS/s1v3.ckpt",
-        "vits_weights_path": "GPT_SoVITS/s2Gv3.pth",
-        "cnhuhbert_base_path": "GPT_SoVITS/chinese-hubert-base",
-        "bert_base_path": "GPT_SoVITS/chinese-roberta-wwm-ext-large",
-    },
-    "v4": {
-        "device": "cpu",
-        "is_half": False,
-        "version": "v4",
-        "t2s_weights_path": "GPT_SoVITS/s1v3.ckpt",
-        "vits_weights_path": "GPT_SoVITS/gsv-v4-pretrained/s2Gv4.pth",
-        "cnhuhbert_base_path": "GPT_SoVITS/chinese-hubert-base",
-        "bert_base_path": "GPT_SoVITS/chinese-roberta-wwm-ext-large",
-    },
-
-}
-
-
-def get_absolute_path(relevant_path: Optional[str]):
-    """
-    Get violet realistic absolute path from delivery relevant path
-
-    Examples:
-        relevant_path = chinese-hubert-base
-
-    Return /{username}/.violet/models/chinese-hubert-base
-    """
-
-    if relevant_path is None:
-        return None
-
-    model_storage_path = violet_config.model_storage_path
-    if relevant_path.startswith("/") is False:
-        relevant_path = "/" + relevant_path
-
-    return model_storage_path + relevant_path
 
 
 def norm_spec(x):
@@ -278,165 +213,6 @@ def set_seed(seed: int):
     return seed
 
 
-class TTS_Config:
-    configs: dict = None
-    v1_languages: list = ["auto", "en", "zh", "ja", "all_zh", "all_ja"]
-    v2_languages: list = ["auto", "auto_yue", "en", "zh", "ja",
-                          "yue", "ko", "all_zh", "all_ja", "all_yue", "all_ko"]
-    languages: list = v2_languages
-    # "all_zh",#全部按中文识别
-    # "en",#全部按英文识别#######不变
-    # "all_ja",#全部按日文识别
-    # "all_yue",#全部按中文识别
-    # "all_ko",#全部按韩文识别
-    # "zh",#按中英混合识别####不变
-    # "ja",#按日英混合识别####不变
-    # "yue",#按粤英混合识别####不变
-    # "ko",#按韩英混合识别####不变
-    # "auto",#多语种启动切分识别语种
-    # "auto_yue",#多语种启动切分识别语种
-
-    def __init__(self,
-                 configs_path: str = None,
-                 configs: Union[dict, str] = None):
-        if configs_path:
-            self.configs_path = configs_path
-        else:
-            from violet.constants import VIOLET_DIR
-            # 设置默认配置文件路径
-            self.configs_path: str = os.path.join(VIOLET_DIR, "tts_infer.yaml")
-
-        if configs in ["", None]:
-            if not os.path.exists(self.configs_path):
-                self.save_configs()
-                print(f"Create default config file at {self.configs_path}")
-            configs: dict = self._load_configs(self.configs_path)
-
-        if isinstance(configs, str):
-            self.configs_path = configs
-            configs: dict = deepcopy(default_tts_configs)
-
-        assert isinstance(configs, dict)
-        version = configs.get("version", "v2").lower()
-        assert version in ["v1", "v2", "v3", "v4"]
-        default_tts_configs[version] = configs.get(
-            version, default_tts_configs[version])
-        self.configs: dict = configs.get(
-            "custom", deepcopy(default_tts_configs[version]))
-
-        self.device = self.configs.get("device", torch.device("cpu"))
-        if "cuda" in str(self.device) and not torch.cuda.is_available():
-            print("Warning: CUDA is not available, set device to CPU.")
-            self.device = torch.device("cpu")
-
-        self.is_half = self.configs.get("is_half", False)
-        # if str(self.device) == "cpu" and self.is_half:
-        #     print(f"Warning: Half precision is not supported on CPU, set is_half to False.")
-        #     self.is_half = False
-
-        self.version = version
-
-        # set model path
-        self.t2s_weights_path = get_absolute_path(
-            self.configs.get("t2s_weights_path", None))
-        self.vits_weights_path = get_absolute_path(
-            self.configs.get("vits_weights_path", None))
-        self.bert_base_path = get_absolute_path(
-            self.configs.get("bert_base_path", None))
-        self.cnhuhbert_base_path = get_absolute_path(
-            self.configs.get("cnhuhbert_base_path", None))
-
-        self.languages = self.v1_languages if self.version == "v1" else self.v2_languages
-
-        self.use_vocoder: bool = False
-
-        if (self.t2s_weights_path in [None, ""]) or (not os.path.exists(self.t2s_weights_path)):
-            self.t2s_weights_path = get_absolute_path(
-                default_tts_configs[version]["t2s_weights_path"])
-            print(
-                f"fall back to default t2s_weights_path: {self.t2s_weights_path}")
-        if (self.vits_weights_path in [None, ""]) or (not os.path.exists(self.vits_weights_path)):
-            self.vits_weights_path = get_absolute_path(
-                default_tts_configs[version]["vits_weights_path"])
-            print(
-                f"fall back to default vits_weights_path: {self.vits_weights_path}")
-        if (self.bert_base_path in [None, ""]) or (not os.path.exists(self.bert_base_path)):
-            self.bert_base_path = get_absolute_path(
-                default_tts_configs[version]["bert_base_path"])
-            print(
-                f"fall back to default bert_base_path: {self.bert_base_path}")
-        if (self.cnhuhbert_base_path in [None, ""]) or (not os.path.exists(self.cnhuhbert_base_path)):
-            self.cnhuhbert_base_path = get_absolute_path(
-                default_tts_configs[version]["cnhuhbert_base_path"])
-            print(
-                f"fall back to default cnhuhbert_base_path: {self.cnhuhbert_base_path}")
-        self.update_configs()
-
-        self.max_sec = None
-        self.hz: int = 50
-        self.semantic_frame_rate: str = "25hz"
-        self.segment_size: int = 20480
-        self.filter_length: int = 2048
-        self.sampling_rate: int = 32000
-        self.hop_length: int = 640
-        self.win_length: int = 2048
-        self.n_speakers: int = 300
-
-    def _load_configs(self, configs_path: str) -> dict:
-        if os.path.exists(configs_path):
-            ...
-        else:
-            print(i18n("路径不存在,使用默认配置"))
-            self.save_configs(configs_path)
-        with open(configs_path, "r", encoding="utf-8") as f:
-            configs = yaml.load(f, Loader=yaml.FullLoader)
-
-        return configs
-
-    def save_configs(self, configs_path: str = None) -> None:
-        configs = deepcopy(default_tts_configs)
-        if self.configs is not None:
-            configs["custom"] = self.update_configs()
-
-        if configs_path is None:
-            configs_path = self.configs_path
-        with open(configs_path, "w") as f:
-            yaml.dump(configs, f)
-
-    def update_configs(self):
-        self.config = {
-            "device": str(self.device),
-            "is_half": self.is_half,
-            "version": self.version,
-            "t2s_weights_path": self.t2s_weights_path,
-            "vits_weights_path": self.vits_weights_path,
-            "bert_base_path": self.bert_base_path,
-            "cnhuhbert_base_path": self.cnhuhbert_base_path,
-        }
-        return self.config
-
-    def update_version(self, version: str) -> None:
-        self.version = version
-        self.languages = self.v1_languages if self.version == "v1" else self.v2_languages
-
-    def __str__(self):
-        self.configs = self.update_configs()
-        string = "TTS Config".center(100, "-") + "\n"
-        for k, v in self.configs.items():
-            string += f"{str(k).ljust(20)}: {str(v)}\n"
-        string += "-" * 100 + "\n"
-        return string
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __hash__(self):
-        return hash(self.configs_path)
-
-    def __eq__(self, other):
-        return isinstance(other, TTS_Config) and self.configs_path == other.configs_path
-
-
 class TTS:
     def __init__(self, configs: Union[dict, str, TTS_Config]):
         if isinstance(configs, TTS_Config):
@@ -513,6 +289,7 @@ class TTS:
         self.configs.vits_weights_path = weights_path
         version, model_version, if_lora_v3 = get_sovits_version_from_path_fast(
             weights_path)
+
         path_sovits = default_tts_configs[model_version]["vits_weights_path"]
 
         if if_lora_v3 == True and os.path.exists(path_sovits) == False:
@@ -1284,8 +1061,7 @@ class TTS:
                         ).detach()[0, 0, :]
                         audio_frag_end_idx.insert(0, 0)
                         batch_audio_fragment = [
-                            _batch_audio_fragment[audio_frag_end_idx[i - 1]
-                                : audio_frag_end_idx[i]]
+                            _batch_audio_fragment[audio_frag_end_idx[i - 1]                                                  : audio_frag_end_idx[i]]
                             for i in range(1, len(audio_frag_end_idx))
                         ]
                     else:

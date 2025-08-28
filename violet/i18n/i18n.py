@@ -1,6 +1,7 @@
 import json
 import locale
 import os
+import sys
 
 I18N_JSON_DIR: os.PathLike = os.path.join(
     os.path.dirname(os.path.relpath(__file__)), "locale")
@@ -37,6 +38,6 @@ class I18nAuto:
         return "Use Language: " + self.language
 
 
-if __name__ == "__main__":
-    i18n = I18nAuto(language="en_US")
-    print(i18n)
+language = os.environ.get("language", "Auto")
+language = sys.argv[-1] if sys.argv[-1] in scan_language_list() else language
+i18n = I18nAuto(language=language)

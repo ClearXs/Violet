@@ -10,10 +10,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { toast } from '@/hooks/use-toast';
 import useAgentApi from '@/services/agents';
 import useAgentStore from '../store';
 import AgentMutateDrawer from './agent-mutate-drawer';
+import { toast } from 'sonner';
 
 export default function AgentDialogs() {
   const agentApi = useAgentApi();
@@ -31,21 +31,14 @@ export default function AgentDialogs() {
     try {
       const res = await agentApi.deleteAgent(selectedAgent.id);
       if (res.code === 200) {
-        toast({
-          title: 'Success',
-          description: 'Agent deleted successfully',
-        });
+        toast.success('Agent deleted successfully');
         refresh();
         setDeleteDialogOpen(false);
       } else {
         throw new Error(res.msg || 'Failed to delete agent');
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to delete agent',
-      });
+      toast.error(error.message || 'Failed to delete agent');
     }
   };
 

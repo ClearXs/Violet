@@ -54,7 +54,7 @@ def llama_config():
         context_window=32768
     )
 
-    from violet.llama import uninstall_all
+    from violet.local_llm.llama import uninstall_all
 
     uninstall_all()
 

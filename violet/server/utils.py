@@ -24,10 +24,3 @@ def print_server_response(response):
             print(response)
     else:
         print(response)
-
-
-def get_server():
-
-    from violet.server.app import server
-
-    return server

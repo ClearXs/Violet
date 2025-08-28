@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import useConfigApi, { EmbeddingConfig } from '@/services/config';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -27,6 +27,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ContentSection from './components/content-section';
 import { Loader2, Save } from 'lucide-react';
+import { debounce } from 'lodash';
 
 const embeddingConfigSchema = z.object({
   embedding_endpoint_type: z.enum([
@@ -50,18 +51,23 @@ const embeddingConfigSchema = z.object({
     'together',
     'llama',
   ]),
-  embedding_endpoint: z.string().url().optional().or(z.literal('')),
-  embedding_model: z.string().min(1, {
-    message: 'Embedding model name is required.',
-  }),
-  embedding_dim: z.number().min(1, {
-    message: 'Embedding dimension must be at least 1.',
-  }),
-  embedding_chunk_size: z.number().min(1).optional(),
-  handle: z.string().optional(),
-  azure_endpoint: z.string().url().optional().or(z.literal('')),
-  azure_version: z.string().optional(),
-  azure_deployment: z.string().optional(),
+  embedding_endpoint: z.string().url().nullable().optional().or(z.literal('')),
+  embedding_model: z
+    .string()
+    .min(1, {
+      message: 'Embedding model name is required.',
+    })
+    .nullable()
+    .optional(),
+  embedding_dim: z
+    .number()
+    .min(1, {
+      message: 'Embedding dimension must be at least 1.',
+    })
+    .nullable()
+    .optional(),
+  embedding_chunk_size: z.number().min(1).optional().nullable(),
+  handle: z.string().optional().nullable(),
 });
 
 type EmbeddingConfigFormValues = z.infer<typeof embeddingConfigSchema>;
@@ -69,44 +75,32 @@ type EmbeddingConfigFormValues = z.infer<typeof embeddingConfigSchema>;
 export default function SettingsEmbedding() {
   const configApi = useConfigApi();
   const [embeddingConfig, setEmbeddingConfig] = useState<EmbeddingConfig>();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<EmbeddingConfigFormValues>({
     resolver: zodResolver(embeddingConfigSchema),
     mode: 'onChange',
+    values: embeddingConfig,
   });
 
   useEffect(() => {
-    configApi.getEmbeddingConfig().then((res) => {
-      if (res.code === 200) {
-        setEmbeddingConfig(res.data);
-        form.reset(res.data);
-      }
-    });
+    configApi.getEmbeddingConfig().then((data) => setEmbeddingConfig(data));
   }, []);
 
   async function onSubmit(data: EmbeddingConfigFormValues) {
     setIsLoading(true);
     try {
-      const res = await configApi.updateEmbeddingConfig(
+      const success = await configApi.updateEmbeddingConfig(
         data as EmbeddingConfig
       );
-      if (res.code === 200) {
-        toast({
-          title: 'Configuration updated successfully!',
-          description: 'Embedding configuration has been saved.',
-        });
+      if (success) {
+        toast.success('Configuration updated successfully!');
         setEmbeddingConfig(data as EmbeddingConfig);
       } else {
         throw new Error('Failed to update configuration');
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update embedding configuration.',
-        variant: 'destructive',
-      });
+      toast.error(`Failed to update embedding configuration. ${error}`);
     } finally {
       setIsLoading(false);
     }
@@ -115,10 +109,13 @@ export default function SettingsEmbedding() {
   return (
     <ContentSection
       title='Embedding Configuration'
-      desc='Embedding Model Configuration'
+      desc='Configure embedding models and providers for semantic search, document processing, and vector storage.'
       operation={
         <>
-          <Button type='submit' disabled={isLoading}>
+          <Button
+            onClick={debounce(form.handleSubmit(onSubmit), 500)}
+            disabled={isLoading}
+          >
             {isLoading ? (
               <Loader2 className='mr-2 h-4 w-4 animate-spin' />
             ) : (
@@ -136,9 +133,9 @@ export default function SettingsEmbedding() {
         </>
       }
     >
-      <ScrollArea className='flex-1 -mx-1 px-3'>
+      <ScrollArea className='flex-1 -mx-1 px-4'>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+          <form className='space-y-6'>
             {/* Basic Configuration */}
             <div className='space-y-4'>
               <FormField
@@ -172,18 +169,7 @@ export default function SettingsEmbedding() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value='openai'>OpenAI</SelectItem>
-                        <SelectItem value='azure'>Azure OpenAI</SelectItem>
-                        <SelectItem value='google_ai'>Google AI</SelectItem>
-                        <SelectItem value='cohere'>Cohere</SelectItem>
-                        <SelectItem value='hugging-face'>
-                          Hugging Face
-                        </SelectItem>
                         <SelectItem value='ollama'>Ollama</SelectItem>
-                        <SelectItem value='together'>Together</SelectItem>
-                        <SelectItem value='bedrock'>AWS Bedrock</SelectItem>
-                        <SelectItem value='anthropic'>Anthropic</SelectItem>
-                        <SelectItem value='groq'>Groq</SelectItem>
-                        <SelectItem value='mistral'>Mistral</SelectItem>
                         <SelectItem value='llama'>Llama</SelectItem>
                       </SelectContent>
                     </Select>

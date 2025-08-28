@@ -3,8 +3,8 @@ import os
 from typing import List, Optional
 
 from llama_cpp import Llama
-from violet.llama import load_model
 from violet.llm_api.llm_client_base import LLMClientBase
+from violet.local_llm import load_model
 from violet.log import get_logger
 from violet.schemas.llm_config import LLMConfig
 from violet.schemas.message import Message

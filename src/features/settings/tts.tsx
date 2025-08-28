@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import useConfigApi, {
   TTSConfig,
   TTSVersionConfig,
@@ -31,9 +30,10 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useRouter } from 'next/navigation';
 import ContentSection from './components/content-section';
 import { Loader2, Save } from 'lucide-react';
+import { toast } from 'sonner';
+import { debounce } from 'lodash';
 
 const ttsVersionConfigSchema = z.object({
   bert_base_path: z.string().min(1, {
@@ -66,49 +66,35 @@ const ttsConfigSchema = z.object({
 });
 
 type TTSConfigFormValues = z.infer<typeof ttsConfigSchema>;
-type TTSVersionConfigFormValues = z.infer<typeof ttsVersionConfigSchema>;
 
 export default function SettingsTTS() {
   const configApi = useConfigApi();
   const [ttsConfig, setTtsConfig] = useState<TTSConfig>();
-  const { toast } = useToast();
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TTSVersion>('custom');
 
   const form = useForm<TTSConfigFormValues>({
     resolver: zodResolver(ttsConfigSchema),
     mode: 'onChange',
+    values: ttsConfig,
   });
 
   useEffect(() => {
-    configApi.getTTSConfig().then((res) => {
-      if (res.code === 200) {
-        setTtsConfig(res.data);
-        form.reset(res.data);
-      }
-    });
+    configApi.getTTSConfig().then((data) => setTtsConfig(data));
   }, []);
 
   async function onSubmit(data: TTSConfigFormValues) {
     setIsLoading(true);
     try {
-      const res = await configApi.updateTTSConfig(data as TTSConfig);
-      if (res.code === 200) {
-        toast({
-          title: 'Configuration updated successfully!',
-          description: 'TTS configuration has been saved.',
-        });
+      const success = await configApi.updateTTSConfig(data as TTSConfig);
+      if (success) {
+        toast.success('Configuration updated successfully!');
         setTtsConfig(data as TTSConfig);
       } else {
         throw new Error('Failed to update configuration');
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update TTS configuration.',
-        variant: 'destructive',
-      });
+      toast.error(`Failed to update TTS configuration. ${error}`);
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +134,6 @@ export default function SettingsTTS() {
               <SelectContent>
                 <SelectItem value='cpu'>CPU</SelectItem>
                 <SelectItem value='cuda'>CUDA (GPU)</SelectItem>
-                <SelectItem value='mps'>MPS (Apple Silicon)</SelectItem>
               </SelectContent>
             </Select>
             <FormDescription>Device to run TTS inference on.</FormDescription>
@@ -269,7 +254,10 @@ export default function SettingsTTS() {
       desc='This is how others will see you on the site.'
       operation={
         <>
-          <Button type='submit' disabled={isLoading}>
+          <Button
+            onClick={debounce(form.handleSubmit(onSubmit), 500)}
+            disabled={isLoading}
+          >
             {isLoading ? (
               <Loader2 className='mr-2 h-4 w-4 animate-spin' />
             ) : (
@@ -287,13 +275,13 @@ export default function SettingsTTS() {
         </>
       }
     >
-      <ScrollArea className='flex-1 px-1'>
+      <ScrollArea className='flex-1 px-4'>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+          <form className='space-y-6'>
             {/* Quick Presets */}
             <div className='space-y-4'>
               <h4 className='text-lg font-semibold'>Quick Presets</h4>
-              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2'>
+              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2'>
                 <Button
                   type='button'
                   variant='outline'
@@ -323,21 +311,6 @@ export default function SettingsTTS() {
                   }
                 >
                   GPU Preset
-                </Button>
-                <Button
-                  type='button'
-                  variant='outline'
-                  onClick={() =>
-                    loadPreset(activeTab, {
-                      device: 'mps',
-                      is_half: false,
-                      bert_base_path:
-                        'GPT_SoVITS/chinese-roberta-wwm-ext-large',
-                      cnhuhbert_base_path: 'GPT_SoVITS/chinese-hubert-base',
-                    })
-                  }
-                >
-                  Apple Silicon Preset
                 </Button>
               </div>
               <FormDescription>

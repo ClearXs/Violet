@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
+from violet.server.context import get_server
 from violet.server.server import SyncServer
-from violet.server.utils import get_server
 
 router = APIRouter(prefix="/persona", tags=['persona'])
 
@@ -15,7 +15,6 @@ async def get_activate_persona(server: SyncServer = Depends(get_server)):
 
 @router.get('/list')
 async def list_personas(server: SyncServer = Depends(get_server)):
-
     return server.persona_manager.list_personas()
 
 

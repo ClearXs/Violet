@@ -373,7 +373,7 @@ class LocalClient(Client):
             debug (bool): Whether to print debug information.
         """
 
-        from violet.server.app import interface, server
+        from violet.server.context import interface, server
 
         # set logging levels
         violet.utils.utils.DEBUG = debug
