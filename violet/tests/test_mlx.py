@@ -2,7 +2,7 @@ import os
 import pytest
 
 from violet.config import VioletConfig
-from violet.mlx.mlx import load_local_model
+from violet.local_llm.mlx.mlx import load_local_model
 from mlx_vlm.prompt_utils import apply_chat_template
 from mlx_vlm import generate
 

@@ -6,6 +6,7 @@ from violet.log import get_logger
 from violet.server.server import SyncServer
 from violet.utils.utils import log_telemetry
 from violet.voice.TTS_infer_pack.TTS import TTS
+from violet.voice.whisper.live.core import TranscriptionEngine
 from violet.voice.whisper.whisper import Whisper
 from violet.settings import model_settings
 
@@ -20,6 +21,7 @@ interface = QueuingInterface(debug=violet.utils.utils.DEBUG)
 server = SyncServer(default_interface_factory=lambda: interface)
 tts_pipeline: TTS = None
 whisper_handler: Whisper = None
+transcription_engine: TranscriptionEngine = None
 
 
 def setup_agent():
@@ -127,13 +129,21 @@ def get_whisper_handler():
     Get the global Whisper handler instance. When whisper_handler is None
     Then once again initialize the Whisper handler.
     """
-
     global whisper_handler
 
     if whisper_handler is None:
         set_whisper_handler()
 
     return whisper_handler
+
+
+def get_transcription_engine():
+    global transcription_engine
+
+    if transcription_engine is None:
+        set_whisper_handler()
+
+    return transcription_engine
 
 
 def close():
@@ -182,10 +192,12 @@ def close_tts_pipeline():
 
 def close_whisper_handler():
     global whisper_handler
+    global transcription_engine
 
     if whisper_handler is not None:
         whisper_handler.close()
         del whisper_handler
+        del transcription_engine
 
     log_telemetry(
         logger=logger,
@@ -205,9 +217,15 @@ def set_tts_pipeline():
 
 
 def set_whisper_handler():
+    """
+    Set system Automatic Speech Recognition Model for Whisper,
+    then set asr live kit transcription engine
+    """
     global whisper_handler
+    global transcription_engine
 
     whisper_handler = Whisper(VioletConfig.get_whisper_config())
+    transcription_engine = TranscriptionEngine(whisper_handler, {"vad": True})
 
     log_telemetry(
         logger=logger,

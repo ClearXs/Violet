@@ -3,9 +3,7 @@ import os
 import pytest
 
 from violet.voice.TTS_infer_pack.TTS import TTS, TTS_Config
-
 from violet.voice.text.english import g2p
-
 from violet.constants import VIOLET_DIR
 
 config_path = VIOLET_DIR + "/tts_infer.yaml"

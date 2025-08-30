@@ -1,6 +1,7 @@
 import base64
 import os
-from typing import List, Optional
+from types import GeneratorType
+from typing import List, Optional, Union
 
 from llama_cpp import Llama
 from violet.llm_api.llm_client_base import LLMClientBase
@@ -8,7 +9,7 @@ from violet.local_llm import load_model
 from violet.log import get_logger
 from violet.schemas.llm_config import LLMConfig
 from violet.schemas.message import Message
-from violet.schemas.openai.chat_completion_response import ChatCompletionResponse
+from violet.schemas.openai.chat_completion_response import ChatCompletionChunkResponse, ChatCompletionResponse
 from violet.schemas.openai.chat_completion_request import ChatCompletionRequest, FunctionCall, ToolFunctionChoice
 from violet.schemas.openai.chat_completion_request import FunctionSchema
 from violet.schemas.openai.chat_completion_request import Tool as OpenAITool
@@ -159,13 +160,15 @@ class LlamaClient(LLMClientBase):
         self,
         response_data: dict,
         input_messages: List[Message],
-    ) -> ChatCompletionResponse:
+    ) -> Union[ChatCompletionResponse, List[ChatCompletionChunkResponse]]:
         """
         Converts raw OpenAI response dict into the ChatCompletionResponse Pydantic model.
         Handles potential extraction of inner thoughts if they were added via kwargs.
         """
-        # OpenAI's response structure directly maps to ChatCompletionResponse
-        # We just need to instantiate the Pydantic model for validation and type safety.
+
+        if isinstance(response_data, GeneratorType):
+            return [ChatCompletionChunkResponse(**chunk.model_dump()) for chunk in response_data]
+
         chat_completion_response = ChatCompletionResponse(**response_data)
 
         # Unpack inner thoughts if they were embedded in function arguments

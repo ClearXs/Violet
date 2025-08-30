@@ -150,3 +150,17 @@ async def test_multi_message_send(llama_config):
         for future in tqdm(as_completed(futures), total=len(futures)):
             result = future.result()
             print(f"result: {result}")
+
+
+@pytest.mark.asyncio
+async def test_stream_message(llama_config):
+
+    llama_client = LlamaClient(llm_config=llama_config)
+
+    message: Message = Message(role="user", content=[
+        TextContent(type='text', text="who are you?")])
+
+    generator = llama_client.send_llm_request(messages=[message], stream=True)
+
+    for chunk in generator:
+        print(chunk.choices[0].delta.content)

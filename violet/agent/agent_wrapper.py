@@ -269,7 +269,10 @@ class AgentWrapper:
         # Pass URI tracking to accumulator
         self.temp_message_accumulator.uri_to_create_time = self.uri_to_create_time
 
-    def chat(self, message: str, think: bool = False):
+    def chat(self,
+             message: str,
+             think: bool = False,
+             stream: bool = False):
         personas = self.client.server.persona_manager.personas
         system_message = Message(role=MessageRole(MessageRole.system), content=[
                                  TextContent(text=personas.character_setting, type=MessageContentType.text)])
@@ -298,7 +301,8 @@ class AgentWrapper:
             put_inner_thoughts_first=True,
         )
 
-        response = llm_client.send_llm_request(messages=messages)
+        response = llm_client.send_llm_request(
+            messages=messages, stream=stream)
         output = response.choices[0].message.content
         if model_name.lower().startswith('qwen3'):
             return re.sub(r'<think>.*?</think>', '', output, flags=re.DOTALL)

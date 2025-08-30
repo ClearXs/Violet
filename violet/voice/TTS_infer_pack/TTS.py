@@ -258,6 +258,9 @@ class TTS:
         self.stop_flag: bool = False
         self.precision: torch.dtype = torch.float16 if self.configs.is_half else torch.float32
 
+        import threading
+        threading.Thread(target=self.warmup, daemon=True).start()
+
     def _init_models(
         self,
     ):
@@ -1446,3 +1449,13 @@ class TTS:
 
         import gc
         gc.collect()
+
+    def warmup(self):
+        if self.t2s_model is not None:
+            ref_audio_path = os.path.join(VioletConfig.tmp_dir, 'hotwords.mp3')
+            req = {
+                "text": "hello world",
+                "text_lang": "en",
+                "ref_audio_path": ref_audio_path,
+            }
+            self.run(req)

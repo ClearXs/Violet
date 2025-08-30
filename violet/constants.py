@@ -1,6 +1,8 @@
 import os
 from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
+import platform
 
+PLATFORM = platform.system()
 VIOLET_DIR = os.path.join(os.path.expanduser("~"), ".violet")
 VIOLET_DIR_TOOL_SANDBOX = os.path.join(VIOLET_DIR, "tool_sandbox_dir")
 

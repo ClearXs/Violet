@@ -1,14 +1,15 @@
+import asyncio
 from fastapi.params import Depends
 from pydantic import BaseModel
 from violet.config import VioletConfig
 from violet.log import get_logger
 from violet.schemas.tts_config import TTS_Config
-from violet.server.context import get_tts_pipeline, get_whisper_handler
+from violet.server.context import get_transcription_engine, get_tts_pipeline, get_whisper_handler
 from violet.voice.TTS_infer_pack.text_segmentation_method import get_method_names as get_cut_method_names
 from violet.voice.TTS_infer_pack.TTS import TTS
 from io import BytesIO
 from fastapi.responses import StreamingResponse, JSONResponse
-from fastapi import APIRouter,  File, Query, Request, Response, UploadFile
+from fastapi import APIRouter,  File, Query, Request, Response, UploadFile, WebSocket, WebSocketDisconnect
 import soundfile as sf
 import numpy as np
 import wave
@@ -16,6 +17,8 @@ import subprocess
 import os
 from typing import Generator
 
+from violet.voice.whisper.live.audio_processor import AudioProcessor
+from violet.voice.whisper.live.core import TranscriptionEngine
 from violet.voice.whisper.whisper import Whisper
 
 logger = get_logger(__name__)
@@ -376,7 +379,6 @@ async def asr_raw_endpoint(request: Request,
         f.write(audio_data)
 
     wav_path = temp_file_path.replace(".webm", ".wav")
-    convert_to_wav(temp_file_path, wav_path)
 
     try:
         audio_data = await request.body()
@@ -394,15 +396,64 @@ async def asr_raw_endpoint(request: Request,
             os.remove(temp_file_path)
 
 
-def convert_to_wav(input_path: str, output_path: str, sample_rate: int = 16000):
-    cmd = [
-        "ffmpeg",
-        "-y",  # 覆盖文件
-        "-i", input_path,  # 输入文件
-        "-ar", str(sample_rate),  # 重采样，比如 16000（Whisper 推荐）
-        "-ac", "1",  # 单声道
-        "-f", "wav",  # 输出格式
-        output_path,
-    ]
-    subprocess.run(cmd, check=True)
-    return output_path
+async def handle_websocket_results(websocket, results_generator):
+    """Consumes results from the audio processor and sends them via WebSocket."""
+    try:
+        async for response in results_generator:
+            await websocket.send_json(response)
+        # when the results_generator finishes it means all audio has been processed
+        logger.info(
+            "Results generator finished. Sending 'ready_to_stop' to client.")
+        await websocket.send_json({"type": "ready_to_stop"})
+    except WebSocketDisconnect:
+        logger.info(
+            "WebSocket disconnected while handling results (client likely closed connection).")
+    except Exception as e:
+        logger.exception(f"Error in WebSocket results handler: {e}")
+
+
+@router.websocket("/live")
+async def live(websocket: WebSocket,
+               transcription_engine: TranscriptionEngine = Depends(get_transcription_engine)):
+    """
+    Real-time Speech-To-Speech websocket endpoint.
+    """
+    audio_processor = AudioProcessor(
+        transcription_engine=transcription_engine,
+    )
+    await websocket.accept()
+
+    results_generator = await audio_processor.create_tasks()
+    websocket_task = asyncio.create_task(
+        handle_websocket_results(websocket, results_generator))
+
+    try:
+        while True:
+            message = await websocket.receive_bytes()
+            await audio_processor.process_audio(message)
+    except KeyError as e:
+        if 'bytes' in str(e):
+            logger.warning(f"Client has closed the connection.")
+        else:
+            logger.error(
+                f"Unexpected KeyError in websocket_endpoint: {e}", exc_info=True)
+    except WebSocketDisconnect:
+        logger.info(
+            "WebSocket disconnected by client during message receiving loop.")
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in websocket_endpoint main loop: {e}", exc_info=True)
+    finally:
+        logger.info("Cleaning up WebSocket endpoint...")
+        if not websocket_task.done():
+            websocket_task.cancel()
+        try:
+            await websocket_task
+        except asyncio.CancelledError:
+            logger.info("WebSocket results handler task was cancelled.")
+        except Exception as e:
+            logger.warning(
+                f"Exception while awaiting websocket_task completion: {e}")
+
+        await audio_processor.cleanup()
+        logger.info("WebSocket endpoint cleaned up successfully.")

@@ -795,6 +795,10 @@ class Text2SemanticDecoder(nn.Module):
                     print("bad zero prediction")
                 print(f"T2S Decoding EOS [{prefix_len} -> {y.shape[1]}]")
                 break
+            # else:
+            #     phones = batch_phones[i].unsqueeze(0).to(self.configs.device)
+            #     _pred_semantic = (samples.unsqueeze(0).unsqueeze(0))   # .unsqueeze(0)#mq要多unsqueeze一次
+            #     audio_fragment =(self.vits_model.decode( _pred_semantic, phones, refer_audio_spec, speed=speed_factor ).detach()[0, 0, :])
 
             ####################### update next step ###################################
             y_emb = self.ar_audio_embedding(y[:, -1:])

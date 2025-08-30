@@ -70,6 +70,8 @@ class VioletConfig:
     # persona assert folder path
     persona_path = VIOLET_DIR + '/personas'
     prompts_path = VIOLET_DIR + '/prompts'
+    # tmp dir
+    tmp_dir = VIOLET_DIR + '/tmp'
 
     # database configs: archival
     archival_storage_type: str = "sqlite"  # local, db

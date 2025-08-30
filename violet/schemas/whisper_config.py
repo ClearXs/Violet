@@ -8,11 +8,12 @@ class WhisperConfig(BaseModel):
     # like model/whisper or other api server model
     model: str
     engine: Literal['whisper']
-
     # api server endpoint
     endpoint: Optional[str] = None
     # api key
     api_key: Optional[str] = None
+    # use for live kit vad path
+    vad: str
 
     def get_model_path(self):
         return get_absolute_path(self.model)

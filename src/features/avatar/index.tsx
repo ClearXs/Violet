@@ -11,17 +11,22 @@ export default function Avatar(props: AvatarProps) {
   const viewer = useMemo(() => new Viewer(), []);
   const speakApi = useSpeakApi();
   const { start, stop } = useRecorder();
-
   const [recording, setRecording] = useState(false);
 
-  const handleHumanVoice = useCallback(async (blob: Blob) => {
-    try {
-      const { text, language } = await doRecognizeVoice(blob);
-      debugger;
-
-      // speakApi.speak({ text, language, expression: 'neutral' }, viewer);
-    } catch (error) {}
+  useEffect(() => {
+    return () => viewer.unloadVRM();
   }, []);
+
+  const handleHumanVoice = useCallback(
+    async (blob: Blob) => {
+      try {
+        const { text, language } = await doRecognizeVoice(blob);
+
+        speakApi.speak({ text, language, expression: 'neutral' }, viewer);
+      } catch (error) {}
+    },
+    [viewer]
+  );
 
   // recognize voice data
   const doRecognizeVoice = useCallback(
@@ -39,7 +44,7 @@ export default function Avatar(props: AvatarProps) {
         return response.json();
       });
     },
-    []
+    [viewer]
   );
 
   const handleRecording = useCallback(

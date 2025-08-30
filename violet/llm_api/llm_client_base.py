@@ -1,10 +1,12 @@
 from abc import abstractmethod
-from typing import List, Optional
+from typing import Iterator, List, Optional, Union
+
+from llama_cpp import ChatCompletionChunk
 
 from violet.errors import LLMError
 from violet.schemas.llm_config import LLMConfig
 from violet.schemas.message import Message
-from violet.schemas.openai.chat_completion_response import ChatCompletionResponse
+from violet.schemas.openai.chat_completion_response import ChatCompletionChunkResponse, ChatCompletionResponse
 from violet.services.cloud_file_mapping_manager import CloudFileMappingManager
 from violet.services.file_manager import FileManager
 
@@ -35,7 +37,7 @@ class LLMClientBase:
         force_tool_call: Optional[str] = None,
         get_input_data_for_debugging: bool = False,
         existing_file_uris: Optional[List[str]] = None,
-    ) -> ChatCompletionResponse:
+    ) -> Union[ChatCompletionResponse, Iterator[ChatCompletionChunkResponse]]:
         """
         Issues a request to the downstream model endpoint and parses response.
         """
@@ -46,7 +48,7 @@ class LLMClientBase:
             return request_data
 
         try:
-            response_data = self.request(request_data)
+            response_data = self.request({**request_data, "stream": stream})
         except Exception as e:
             raise self.handle_llm_error(e)
 

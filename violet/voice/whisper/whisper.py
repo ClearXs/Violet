@@ -3,6 +3,7 @@ import os
 import threading
 from typing import Tuple
 from faster_whisper import WhisperModel
+from violet.config import VioletConfig
 from violet.log import get_logger
 from violet.utils.utils import log_telemetry
 from violet.schemas.whisper_config import WhisperConfig
@@ -36,13 +37,10 @@ class Whisper:
 
         if local_whisper_model is not None:
             self.model = local_whisper_model
-
         else:
             self.set_whisper_model(config)
 
     def set_whisper_model(self, config: WhisperConfig):
-        self.config = config
-
         whisper_model_path = config.get_model_path()
 
         if not os.path.exists(whisper_model_path):
@@ -51,13 +49,18 @@ class Whisper:
                           **{"model": "whisper tiny model", "path": whisper_model_path})
 
             import faster_whisper
+
             faster_whisper.download("tiny", whisper_model_path)
+
+        self.model = _load_whisper_model(whisper_model_path)
+        self.config = config
+
+        import threading
+        threading.Thread(target=self.warmup, daemon=True).start()
 
         # load whisper model
         log_telemetry(logger=logger, event='load_model',
                       **{"model": "whisper tiny model", "path": whisper_model_path})
-
-        self.model = _load_whisper_model(whisper_model_path)
 
     def rec(self, audio_path: str) -> Tuple[str, str]:
         """
@@ -73,6 +76,7 @@ class Whisper:
         logger.debug(f"transcribe audio {audio_path}")
 
         import os
+
         if os.path.exists(audio_path) is False:
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
@@ -93,3 +97,9 @@ class Whisper:
         if local_whisper_model is not None:
             del local_whisper_model
             gc.collect()
+
+    def warmup(self):
+        # load prepare warm up whisper model
+        if self.model is not None:
+            tmp_audio_path = os.path.join(VioletConfig.tmp_dir, "hotwords.mp3")
+            self.rec(tmp_audio_path)

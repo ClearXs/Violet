@@ -28,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { toast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -39,6 +38,7 @@ import useAgentApi, {
 } from '@/services/agents';
 import useAgentStore from '../store';
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 const agentFormSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255, 'Name too long'),
@@ -125,10 +125,7 @@ export default function AgentMutateDrawer() {
       }
 
       if (res.code === 200) {
-        toast({
-          title: 'Success',
-          description: `Agent ${isEdit ? 'updated' : 'created'} successfully`,
-        });
+        toast.success(`Agent ${isEdit ? 'updated' : 'created'} successfully`);
         refresh();
         handleClose();
       } else {
@@ -137,12 +134,9 @@ export default function AgentMutateDrawer() {
         );
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description:
-          error.message || `Failed to ${isEdit ? 'update' : 'create'} agent`,
-      });
+      toast.error(
+        error.message || `Failed to ${isEdit ? 'update' : 'create'} agent`
+      );
     }
   };
 
