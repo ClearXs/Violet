@@ -62,13 +62,14 @@ const useSpeakApi = () => {
     screenplay: Screenplay,
     viewer: Viewer,
     onStart?: () => void,
-    onComplete?: () => void
+    onComplete?: () => void,
+    getAudio?: () => Promise<ArrayBuffer>
   ) => {
     continuousFetchAudio(
       screenplay,
       viewer,
       0,
-      getTtsAudio(screenplay.text),
+      getAudio ?? getTtsAudio(screenplay.text),
       onStart,
       onComplete
     );

@@ -1,11 +1,12 @@
 import asyncio
+from typing import AsyncGenerator, Dict,  List, Literal, Optional
 import numpy as np
 from time import time, sleep
 import math
 import logging
 import traceback
 from violet.voice.whisper.live.timed_objects import ASRToken, Silence
-from violet.voice.whisper.live.core import TranscriptionEngine, online_factory, online_diarization_factory
+from violet.voice.whisper.live.core import TranscriptionEngine
 from violet.voice.whisper.live.ffmpeg_manager import FFmpegManager, FFmpegState
 from violet.voice.whisper.live.silero_vad_iterator import FixedVADIterator
 from violet.voice.whisper.live.results_formater import format_output, format_time
@@ -16,6 +17,23 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 SENTINEL = object()  # unique sentinel object for end of stream marker
+
+
+class ChunkLine(Dict):
+    speaker: str
+    text: str
+    beg: str
+    end: str
+
+
+class AudioResponseChunk(Dict):
+    status: Literal['active_transcription', 'no_audio_detected', 'error']
+    error: Optional[str]
+    lines: List[ChunkLine]
+    buffer_transcription: bool
+    buffer_diarization: str
+    remaining_time_transcription: float
+    remaining_time_diarization: float
 
 
 class AudioProcessor:
@@ -81,8 +99,6 @@ class AudioProcessor:
         self.ffmpeg_manager.on_error_callback = handle_ffmpeg_error
         self._ffmpeg_error = None
 
-        self.transcription_queue = asyncio.Queue() if self.args.transcription else None
-        self.diarization_queue = asyncio.Queue() if self.args.diarization else None
         self.pcm_buffer = bytearray()
 
         # Task references
@@ -91,16 +107,6 @@ class AudioProcessor:
         self.ffmpeg_reader_task = None
         self.watchdog_task = None
         self.all_tasks_for_cleanup = []
-
-        # Initialize transcription engine if enabled
-        if self.args.transcription:
-            self.online = online_factory(
-                self.args, models.asr, models.tokenizer)
-
-        # Initialize diarization engine if enabled
-        if self.args.diarization:
-            self.diarization = online_diarization_factory(
-                self.args, models.diarization_model)
 
     def convert_pcm_to_float(self, pcm_buffer):
         """Convert PCM buffer in s16le format to normalized NumPy array."""
@@ -404,7 +410,7 @@ class AudioProcessor:
                     self.diarization_queue.task_done()
         logger.info("Diarization processor task finished.")
 
-    async def results_formatter(self):
+    async def results_formatter(self) -> AsyncGenerator[AudioResponseChunk, None]:
         """Format processing results for output."""
         last_sent_trans = None
         last_sent_diar = None

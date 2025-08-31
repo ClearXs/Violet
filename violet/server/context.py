@@ -1,6 +1,8 @@
+from concurrent.futures import ThreadPoolExecutor
 import violet
 from violet.agent.agent_wrapper import AgentWrapper
 from violet.config import VioletConfig
+from violet.constants import DEFAULT_PARALLELISM_NUM
 from violet.interface import QueuingInterface
 from violet.log import get_logger
 from violet.server.server import SyncServer
@@ -22,6 +24,7 @@ server = SyncServer(default_interface_factory=lambda: interface)
 tts_pipeline: TTS = None
 whisper_handler: Whisper = None
 transcription_engine: TranscriptionEngine = None
+executor: ThreadPoolExecutor = None
 
 
 def setup_agent():
@@ -82,6 +85,12 @@ def setup_whisper():
             **{"module": "whisper", "status": "successful"})
 
 
+def setup_executor():
+    global executor
+
+    executor = ThreadPoolExecutor(max_workers=DEFAULT_PARALLELISM_NUM)
+
+
 def setup():
     """
     Unify setup system context method
@@ -90,6 +99,7 @@ def setup():
     setup_model()
     setup_tts()
     setup_whisper()
+    setup_executor()
 
 
 def get_agent():
@@ -146,11 +156,10 @@ def get_transcription_engine():
     return transcription_engine
 
 
-def close():
-    close_model()
-    close_embedding_model()
-    close_tts_pipeline()
-    close_whisper_handler()
+def get_executor():
+    global executor
+
+    return executor
 
 
 def close_model():
@@ -203,6 +212,21 @@ def close_whisper_handler():
         logger=logger,
         event="close",
         **{"module": "whisper model", "status": "successful"})
+
+
+def close_executor():
+    global executor
+
+    if executor:
+        executor.shutdown(wait=False)
+
+
+def close():
+    close_model()
+    close_embedding_model()
+    close_tts_pipeline()
+    close_whisper_handler()
+    close_executor()
 
 
 def set_tts_pipeline():

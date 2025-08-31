@@ -27,6 +27,7 @@ from violet.server.router.persona import router as PersonaRouter
 from violet.server.router.config import router as ConfigRouter
 from violet.server.router.agents import router as AgentsRouter
 from violet.server.router.voice import TTS_Request, router as VoiceRouter, tts_handle
+from violet.server.router.live import router as LiveRouter
 
 logger = get_logger(__name__)
 
@@ -53,6 +54,7 @@ app.include_router(FileRouter)
 app.include_router(PersonaRouter)
 app.include_router(ConfigRouter)
 app.include_router(AgentsRouter)
+app.include_router(LiveRouter)
 
 # Add CORS middleware
 app.add_middleware(

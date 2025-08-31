@@ -303,6 +303,10 @@ class AgentWrapper:
 
         response = llm_client.send_llm_request(
             messages=messages, stream=stream)
+
+        if stream == True:
+            return response
+
         output = response.choices[0].message.content
         if model_name.lower().startswith('qwen3'):
             return re.sub(r'<think>.*?</think>', '', output, flags=re.DOTALL)

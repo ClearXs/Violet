@@ -6,6 +6,8 @@ PLATFORM = platform.system()
 VIOLET_DIR = os.path.join(os.path.expanduser("~"), ".violet")
 VIOLET_DIR_TOOL_SANDBOX = os.path.join(VIOLET_DIR, "tool_sandbox_dir")
 
+DEFAULT_PARALLELISM_NUM = 4
+
 ADMIN_PREFIX = "/v1/admin"
 API_PREFIX = "/v1"
 OPENAI_API_PREFIX = "/openai"

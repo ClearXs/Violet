@@ -10,15 +10,10 @@ from violet.voice.TTS_infer_pack.TTS import TTS
 from io import BytesIO
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi import APIRouter,  File, Query, Request, Response, UploadFile, WebSocket, WebSocketDisconnect
-import soundfile as sf
-import numpy as np
-import wave
-import subprocess
 import os
 from typing import Generator
 
-from violet.voice.whisper.live.audio_processor import AudioProcessor
-from violet.voice.whisper.live.core import TranscriptionEngine
+from violet.voice.utils import pack_audio, wave_header_chunk
 from violet.voice.whisper.whisper import Whisper
 
 logger = get_logger(__name__)
@@ -27,13 +22,6 @@ logger = get_logger(__name__)
 cut_method_names = get_cut_method_names()
 
 router = APIRouter(prefix='/voice', tags=['voice'])
-
-
-async def shutdown_gracefully():
-    global tts_pipeline
-
-    if tts_pipeline:
-        tts_pipeline.close()
 
 
 class TTS_Request(BaseModel):
@@ -59,83 +47,6 @@ class TTS_Request(BaseModel):
     repetition_penalty: float = 1.35
     sample_steps: int = 32
     super_sampling: bool = False
-
-
-# modify from https://github.com/RVC-Boss/GPT-SoVITS/pull/894/files
-def pack_ogg(io_buffer: BytesIO, data: np.ndarray, rate: int):
-    with sf.SoundFile(io_buffer, mode="w", samplerate=rate, channels=1, format="ogg") as audio_file:
-        audio_file.write(data)
-    return io_buffer
-
-
-def pack_raw(io_buffer: BytesIO, data: np.ndarray, rate: int):
-    io_buffer.write(data.tobytes())
-    return io_buffer
-
-
-def pack_wav(io_buffer: BytesIO, data: np.ndarray, rate: int):
-    io_buffer = BytesIO()
-    sf.write(io_buffer, data, rate, format="wav")
-    return io_buffer
-
-
-def pack_aac(io_buffer: BytesIO, data: np.ndarray, rate: int):
-    process = subprocess.Popen(
-        [
-            "ffmpeg",
-            "-f",
-            "s16le",  # 输入16位有符号小端整数PCM
-            "-ar",
-            str(rate),  # 设置采样率
-            "-ac",
-            "1",  # 单声道
-            "-i",
-            "pipe:0",  # 从管道读取输入
-            "-c:a",
-            "aac",  # 音频编码器为AAC
-            "-b:a",
-            "192k",  # 比特率
-            "-vn",  # 不包含视频
-            "-f",
-            "adts",  # 输出AAC数据流格式
-            "pipe:1",  # 将输出写入管道
-        ],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    out, _ = process.communicate(input=data.tobytes())
-    io_buffer.write(out)
-    return io_buffer
-
-
-def pack_audio(io_buffer: BytesIO, data: np.ndarray, rate: int, media_type: str):
-    if media_type == "ogg":
-        io_buffer = pack_ogg(io_buffer, data, rate)
-    elif media_type == "aac":
-        io_buffer = pack_aac(io_buffer, data, rate)
-    elif media_type == "wav":
-        io_buffer = pack_wav(io_buffer, data, rate)
-    else:
-        io_buffer = pack_raw(io_buffer, data, rate)
-    io_buffer.seek(0)
-    return io_buffer
-
-
-# from https://huggingface.co/spaces/coqui/voice-chat-with-mistral/blob/main/app.py
-def wave_header_chunk(frame_input=b"", channels=1, sample_width=2, sample_rate=32000):
-    # This will create a wave header then append the frame input
-    # It should be first on a streaming wav file
-    # Other frames better should not have it (else you will hear some artifacts each chunk start)
-    wav_buf = BytesIO()
-    with wave.open(wav_buf, "wb") as vfout:
-        vfout.setnchannels(channels)
-        vfout.setsampwidth(sample_width)
-        vfout.setframerate(sample_rate)
-        vfout.writeframes(frame_input)
-
-    wav_buf.seek(0)
-    return wav_buf.read()
 
 
 def check_params(req: dict, tts_config: TTS_Config):
@@ -394,66 +305,3 @@ async def asr_raw_endpoint(request: Request,
     finally:
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
-
-
-async def handle_websocket_results(websocket, results_generator):
-    """Consumes results from the audio processor and sends them via WebSocket."""
-    try:
-        async for response in results_generator:
-            await websocket.send_json(response)
-        # when the results_generator finishes it means all audio has been processed
-        logger.info(
-            "Results generator finished. Sending 'ready_to_stop' to client.")
-        await websocket.send_json({"type": "ready_to_stop"})
-    except WebSocketDisconnect:
-        logger.info(
-            "WebSocket disconnected while handling results (client likely closed connection).")
-    except Exception as e:
-        logger.exception(f"Error in WebSocket results handler: {e}")
-
-
-@router.websocket("/live")
-async def live(websocket: WebSocket,
-               transcription_engine: TranscriptionEngine = Depends(get_transcription_engine)):
-    """
-    Real-time Speech-To-Speech websocket endpoint.
-    """
-    audio_processor = AudioProcessor(
-        transcription_engine=transcription_engine,
-    )
-    await websocket.accept()
-
-    results_generator = await audio_processor.create_tasks()
-    websocket_task = asyncio.create_task(
-        handle_websocket_results(websocket, results_generator))
-
-    try:
-        while True:
-            message = await websocket.receive_bytes()
-            await audio_processor.process_audio(message)
-    except KeyError as e:
-        if 'bytes' in str(e):
-            logger.warning(f"Client has closed the connection.")
-        else:
-            logger.error(
-                f"Unexpected KeyError in websocket_endpoint: {e}", exc_info=True)
-    except WebSocketDisconnect:
-        logger.info(
-            "WebSocket disconnected by client during message receiving loop.")
-    except Exception as e:
-        logger.error(
-            f"Unexpected error in websocket_endpoint main loop: {e}", exc_info=True)
-    finally:
-        logger.info("Cleaning up WebSocket endpoint...")
-        if not websocket_task.done():
-            websocket_task.cancel()
-        try:
-            await websocket_task
-        except asyncio.CancelledError:
-            logger.info("WebSocket results handler task was cancelled.")
-        except Exception as e:
-            logger.warning(
-                f"Exception while awaiting websocket_task completion: {e}")
-
-        await audio_processor.cleanup()
-        logger.info("WebSocket endpoint cleaned up successfully.")

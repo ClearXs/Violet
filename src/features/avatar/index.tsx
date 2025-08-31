@@ -1,21 +1,20 @@
 import VrmViewer, { VrmViewerProps } from '@/features/avatar/vrmViewer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Viewer } from './vrm/viewer';
 import { ViewerContext } from './vrm/viewerContext';
 import useSpeakApi from './voices/speak';
 import useRecorder from './voices/record';
+import useLiveKit from './voices/livekit';
+import LiveKit from './voices/livekit';
 
 export type AvatarProps = VrmViewerProps & {};
 
 export default function Avatar(props: AvatarProps) {
   const viewer = useMemo(() => new Viewer(), []);
   const speakApi = useSpeakApi();
+  const liveKitRef = useRef<LiveKit>(null);
   const { start, stop } = useRecorder();
   const [recording, setRecording] = useState(false);
-
-  useEffect(() => {
-    return () => viewer.unloadVRM();
-  }, []);
 
   const handleHumanVoice = useCallback(
     async (blob: Blob) => {
@@ -66,9 +65,20 @@ export default function Avatar(props: AvatarProps) {
     [recording]
   );
 
+  const onReceiveAudio = useCallback((audioArray: ArrayBuffer) => {}, []);
+
   useEffect(() => {
     window.addEventListener('keydown', handleRecording);
-    return () => window.removeEventListener('keydown', handleRecording);
+
+    liveKitRef.current = new LiveKit(onReceiveAudio);
+
+    liveKitRef.current.setup();
+
+    return () => {
+      window.removeEventListener('keydown', handleRecording);
+      viewer.unloadVRM();
+      liveKitRef.current?.close();
+    };
   }, [handleRecording]);
 
   return (
