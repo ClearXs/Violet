@@ -17,6 +17,12 @@ class LiveKit {
 
   constructor(onReceive: OnReceiveBytes) {
     this.onReceive = onReceive;
+
+    this.setup();
+  }
+
+  set setOnReceive(callback: OnReceiveBytes) {
+    this.onReceive = callback;
   }
 
   public setup() {
@@ -65,7 +71,7 @@ class LiveKit {
   }
 
   public sendMessage(msg: string | ArrayBufferLike | Blob | ArrayBufferView) {
-    if (this.socket) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(msg);
     }
   }

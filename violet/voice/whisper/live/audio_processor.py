@@ -99,6 +99,8 @@ class AudioProcessor:
         self.ffmpeg_manager.on_error_callback = handle_ffmpeg_error
         self._ffmpeg_error = None
 
+        self.transcription_queue = asyncio.Queue() if self.args.transcription else None
+        self.diarization_queue = asyncio.Queue() if self.args.diarization else None
         self.pcm_buffer = bytearray()
 
         # Task references
@@ -545,12 +547,6 @@ class AudioProcessor:
                     "remaining_time_diarization": 0
                 }
             return error_generator()
-
-        if self.args.transcription and self.online:
-            self.transcription_task = asyncio.create_task(
-                self.transcription_processor())
-            self.all_tasks_for_cleanup.append(self.transcription_task)
-            processing_tasks_for_watchdog.append(self.transcription_task)
 
         if self.args.diarization and self.diarization:
             self.diarization_task = asyncio.create_task(

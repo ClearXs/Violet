@@ -249,7 +249,8 @@ def set_whisper_handler():
     global transcription_engine
 
     whisper_handler = Whisper(VioletConfig.get_whisper_config())
-    transcription_engine = TranscriptionEngine(whisper_handler, {"vad": True})
+    transcription_engine = TranscriptionEngine(
+        whisper_handler, **{"vad": True})
 
     log_telemetry(
         logger=logger,

@@ -19,8 +19,12 @@ class TranscriptionEngine:
 
         defaults = {
             "vac": True,
+            "min_chunk_size": 0.5,
             "vac_chunk_size": 0.04,
+            "vac": True,
             "vad": True,
+            "transcription": True,
+            "diarization": False,
         }
 
         config_dict = {**defaults, **kwargs}

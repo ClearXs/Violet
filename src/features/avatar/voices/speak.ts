@@ -17,8 +17,8 @@ const useSpeakApi = () => {
   let prevSpeakPromise: Promise<unknown> = Promise.resolve();
 
   const continuousFetchAudio = (
-    screenplay: Screenplay,
     viewer: Viewer,
+    expression: EmotionType,
     fetchInterval: number,
     fetchAudio: () => Promise<ArrayBuffer>,
     onStart?: () => void,
@@ -42,7 +42,7 @@ const useSpeakApi = () => {
         if (!audioBuffer) {
           return;
         }
-        return viewer.model?.speak(audioBuffer, screenplay.expression);
+        return viewer.model?.speak(audioBuffer, expression);
       }
     );
     prevSpeakPromise.then(() => {
@@ -59,17 +59,18 @@ const useSpeakApi = () => {
   };
 
   const speak = (
-    screenplay: Screenplay,
+    expression: EmotionType,
     viewer: Viewer,
+    text?: string,
     onStart?: () => void,
     onComplete?: () => void,
     getAudio?: () => Promise<ArrayBuffer>
   ) => {
     continuousFetchAudio(
-      screenplay,
       viewer,
+      expression,
       0,
-      getAudio ?? getTtsAudio(screenplay.text),
+      getAudio ?? getTtsAudio(text!),
       onStart,
       onComplete
     );

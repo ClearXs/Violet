@@ -4,86 +4,90 @@ import { Viewer } from './vrm/viewer';
 import { ViewerContext } from './vrm/viewerContext';
 import useSpeakApi from './voices/speak';
 import useRecorder from './voices/record';
-import useLiveKit from './voices/livekit';
 import LiveKit from './voices/livekit';
+import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 
 export type AvatarProps = VrmViewerProps & {};
 
 export default function Avatar(props: AvatarProps) {
   const viewer = useMemo(() => new Viewer(), []);
   const speakApi = useSpeakApi();
-  const liveKitRef = useRef<LiveKit>(null);
+  const liveKit = useMemo<LiveKit>(
+    () =>
+      new LiveKit((bytes) => {
+        speakApi.speak(
+          'neutral',
+          viewer,
+          undefined,
+          undefined,
+          async () => bytes
+        );
+      }),
+    []
+  );
   const { start, stop } = useRecorder();
   const [recording, setRecording] = useState(false);
 
-  const handleHumanVoice = useCallback(
-    async (blob: Blob) => {
-      try {
-        const { text, language } = await doRecognizeVoice(blob);
+  useEffect(() => {
+    return () => {
+      liveKit.close();
+    };
+  }, []);
 
-        speakApi.speak({ text, language, expression: 'neutral' }, viewer);
-      } catch (error) {}
-    },
-    [viewer]
-  );
+  const sendVoice = useCallback(async (blob: Blob) => {
+    const arrayBuffer = await blob.arrayBuffer();
+    liveKit.sendMessage(arrayBuffer);
+  }, []);
 
-  // recognize voice data
-  const doRecognizeVoice = useCallback(
-    (blob: Blob): Promise<{ text: string; language: string }> => {
-      return fetch('/api/voice/asr/raw', {
-        method: 'POST',
-        body: blob,
-        headers: {
-          'Content-Type': 'audio/webm',
-        },
-      }).then((response) => {
-        if (!response.ok) {
-          throw new Error('Failed to recognize voice');
-        }
-        return response.json();
+  const handleRecording = useCallback(async () => {
+    if (recording) {
+      stop();
+      setRecording(false);
+    } else {
+      setRecording(true);
+
+      await start(async (blob) => {
+        await sendVoice(blob);
       });
-    },
-    [viewer]
-  );
+    }
+  }, [recording, sendVoice, start, stop]);
 
-  const handleRecording = useCallback(
+  const handleKeyboard = useCallback(
     async (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'x') {
         event.preventDefault();
-        if (recording) {
-          stop();
-          setRecording(false);
-        } else {
-          setRecording(true);
-
-          await start(async (blob) => {
-            await handleHumanVoice(blob);
-          });
-        }
+        await handleRecording();
       }
     },
     [recording]
   );
 
-  const onReceiveAudio = useCallback((audioArray: ArrayBuffer) => {}, []);
-
   useEffect(() => {
-    window.addEventListener('keydown', handleRecording);
-
-    liveKitRef.current = new LiveKit(onReceiveAudio);
-
-    liveKitRef.current.setup();
+    window.addEventListener('keydown', handleKeyboard);
 
     return () => {
-      window.removeEventListener('keydown', handleRecording);
+      window.removeEventListener('keydown', handleKeyboard);
       viewer.unloadVRM();
-      liveKitRef.current?.close();
     };
-  }, [handleRecording]);
+  }, [viewer]);
 
   return (
     <ViewerContext.Provider value={{ viewer }}>
       <VrmViewer {...props}></VrmViewer>
+
+      <div className='absolute bottom-4 -translate-x-1/2 '>
+        {recording ? (
+          <IconMicrophone
+            className='text-red-500'
+            onClick={async () => await handleRecording()}
+          />
+        ) : (
+          <IconMicrophoneOff
+            className='text-red-500'
+            onClick={async () => await handleRecording()}
+          />
+        )}
+      </div>
     </ViewerContext.Provider>
   );
 }
