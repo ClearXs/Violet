@@ -1,12 +1,11 @@
-import VrmViewer, { VrmViewerProps } from '@/features/avatar/Viewer';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import VrmViewer, { VrmViewerProps } from '@/features/avatar/VrmViewer';
+import { useEffect, useMemo } from 'react';
 import { Viewer } from './vrm/viewer';
 import { ViewerContext } from './vrm/viewerContext';
 import useSpeakApi from './voices/speak';
-import useRecorder from './voices/record';
 import LiveKit from './voices/livekit';
-import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import Tools from './Tools';
+import Subtitles from './Subtitle';
 
 export type AvatarProps = VrmViewerProps & {};
 
@@ -38,7 +37,9 @@ export default function Avatar(props: AvatarProps) {
   return (
     <ViewerContext.Provider value={{ viewer }}>
       <VrmViewer {...props}></VrmViewer>
-      <div className='absolute bottom-4 left-1/2 -translate-x-1/2 '>
+
+      <div className='absolute bottom-4 flex flex-col gap-2 left-1/2 -translate-x-1/2 '>
+        <Subtitles maxLines={3} autoHide={true} autoHideDelay={5000} />
         <Tools liveKit={liveKit} />
       </div>
     </ViewerContext.Provider>

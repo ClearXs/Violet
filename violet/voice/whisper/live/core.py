@@ -1,6 +1,7 @@
 from argparse import Namespace
 
 from violet.utils.file import get_absolute_path
+from violet.voice.whisper.live.live_whisper import LiveWhisper
 from violet.voice.whisper.whisper import Whisper
 
 
@@ -25,6 +26,9 @@ class TranscriptionEngine:
             "vad": True,
             "transcription": True,
             "diarization": False,
+            "buffer_trimming": "segment",
+            "confidence_validation": False,
+            "buffer_trimming_sec": 15,
         }
 
         config_dict = {**defaults, **kwargs}
@@ -42,6 +46,6 @@ class TranscriptionEngine:
                 repo_or_dir=get_absolute_path(vad), source="local", model="silero_vad")
 
         # reference whisper model for fast whisper
-        self.asr = whisper.model
+        self.asr = LiveWhisper(whisper.config)
 
         TranscriptionEngine._initialized = True

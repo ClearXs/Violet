@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useLayout } from '@/context/layout-context';
 import usePersonaApi, { Personas } from '@/services/personas';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { ChevronDown, Maximize, Minimize } from 'lucide-react';
+import { ChevronDown, Maximize, Minimize, SaveIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { use, useEffect, useState } from 'react';
 import Avatar from '@/features/avatar';
@@ -31,8 +31,8 @@ export default function PersonaDetails({
   }, [idx]);
 
   return (
-    <div className='p-3'>
-      <header className='flex flex-col gap-1'>
+    <div className='h-full w-full'>
+      <header className='absolute w-full h-12 top-0 flex flex-row justify-center items-center gap-1 p-3 bg-[var(--sidebar-primary-foreground)]'>
         <Button
           size='icon'
           onClick={() => {
@@ -41,6 +41,10 @@ export default function PersonaDetails({
           }}
         >
           <IconArrowLeft />
+        </Button>
+
+        <Button className='ml-auto'>
+          <SaveIcon /> Apply
         </Button>
       </header>
 

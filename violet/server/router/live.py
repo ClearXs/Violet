@@ -92,6 +92,8 @@ async def speech_to_speech(
     lines = audio_chunk['lines']
     voice_chunk = "".join(line['text'] for line in lines)
 
+    logger.info("Automatic speech recognition voice text: %s", voice_chunk)
+
     chat_generator = agent.chat(voice_chunk, stream=True)
     separate_text_chunk = []
     text_chunk = ""

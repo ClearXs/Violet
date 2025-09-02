@@ -23,6 +23,10 @@ export default function Tools({ liveKit }: ToolsProps) {
     return () => {
       window.removeEventListener('keydown', handleKeyboard);
 
+      liveKit.addOnClose(() => {
+        setRecording(false);
+      });
+
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = undefined;
@@ -48,7 +52,7 @@ export default function Tools({ liveKit }: ToolsProps) {
       waveCanvasRef.current.width / (window.devicePixelRatio || 1),
       waveCanvasRef.current.height / (window.devicePixelRatio || 1)
     );
-    waveRenderRef.current.lineWidth = 1;
+    waveRenderRef.current.lineWidth = 0.5;
     waveRenderRef.current.strokeStyle = getWaveStroke();
     waveRenderRef.current.beginPath();
 
@@ -84,8 +88,8 @@ export default function Tools({ liveKit }: ToolsProps) {
 
   const getWaveStroke = useCallback(() => {
     const styles = getComputedStyle(document.documentElement);
-    const v = styles.getPropertyValue('--wave-stroke').trim();
-    return v || 'var(--primary)';
+    const v = styles.getPropertyValue('--primary').trim();
+    return v || '#fff';
   }, []);
 
   const sendVoice = useCallback(

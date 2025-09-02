@@ -1,10 +1,12 @@
 import asyncio
+import sys
 from typing import AsyncGenerator, Dict,  List, Literal, Optional
 import numpy as np
 from time import time, sleep
 import math
 import logging
 import traceback
+from violet.voice.whisper.live.online_asr import OnlineASRProcessor
 from violet.voice.whisper.live.timed_objects import ASRToken, Silence
 from violet.voice.whisper.live.core import TranscriptionEngine
 from violet.voice.whisper.live.ffmpeg_manager import FFmpegManager, FFmpegState
@@ -91,6 +93,17 @@ class AudioProcessor:
             sample_rate=self.sample_rate,
             channels=self.channels
         )
+
+        # Initialize transcription engine if enabled
+        if self.args.transcription:
+            self.online = OnlineASRProcessor(
+                self.asr,
+                None,
+                logfile=sys.stderr,
+                buffer_trimming=(self.args.buffer_trimming,
+                                 self.args.buffer_trimming_sec),
+                confidence_validation=self.args.confidence_validation
+            )
 
         async def handle_ffmpeg_error(error_type: str):
             logger.error(f"FFmpeg error: {error_type}")
@@ -315,7 +328,7 @@ class AudioProcessor:
                 if type(item) is Silence:
                     cumulative_pcm_duration_stream_time += item.duration
                     self.online.insert_silence(
-                        item.duration, self.tokens[-1].end)
+                        item.duration, self.tokens[-1].end if self.tokens else 0)
                     continue
 
                 if isinstance(item, np.ndarray):
@@ -547,6 +560,12 @@ class AudioProcessor:
                     "remaining_time_diarization": 0
                 }
             return error_generator()
+
+        if self.args.transcription and self.online:
+            self.transcription_task = asyncio.create_task(
+                self.transcription_processor())
+            self.all_tasks_for_cleanup.append(self.transcription_task)
+            processing_tasks_for_watchdog.append(self.transcription_task)
 
         if self.args.diarization and self.diarization:
             self.diarization_task = asyncio.create_task(

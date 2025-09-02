@@ -9,11 +9,17 @@ type WsAudioDescriptor = {
   media_type: 'raw' | 'string';
 };
 
+type OnLiveClose = () => void;
+type OnLiveError = (error: Event) => void;
+
 class LiveKit {
   private socket: WebSocket | null = null;
   private audioData: ArrayBuffer = new ArrayBuffer(0);
   private isHeaderChunk = false;
   private onReceive: OnReceiveBytes;
+
+  private liveCloseListeners: OnLiveClose[] = [];
+  private liveErrorListener: OnLiveError[] = [];
 
   constructor(onReceive: OnReceiveBytes) {
     this.onReceive = onReceive;
@@ -28,11 +34,11 @@ class LiveKit {
   public setup() {
     try {
       this.socket = new WebSocket('ws://localhost:10890/live/ws');
-      this.socket.onclose = () => {
-        toast.error('Livekit connection closed');
+      this.socket.onclose = this.close.bind(this);
+      this.socket.onmessage = this.onMessage.bind(this);
+      this.socket.onerror = (error) => {
+        this.liveErrorListener.forEach((listener) => listener(error));
       };
-
-      this.socket.onmessage = this.onMessage;
     } catch (error) {
       toast.error(`Failed to establish livekit websocket ${error}`);
     }
@@ -77,7 +83,19 @@ class LiveKit {
   }
 
   public close() {
-    this.socket?.close();
+    this.liveCloseListeners.forEach((listener) => listener());
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket?.close();
+      toast.error('Livekit connection closed');
+    }
+  }
+
+  public addOnClose(listener: OnLiveClose) {
+    this.liveCloseListeners.push(listener);
+  }
+
+  public addOnError(listener: OnLiveError) {
+    this.liveErrorListener.push(listener);
   }
 }
 
