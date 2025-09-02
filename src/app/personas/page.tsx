@@ -59,7 +59,9 @@ const PersonaCard = ({
         className={`group overflow-hidden transition-all duration-300 hover:scale-105 py-0 gap-2`}
         onClick={() => {
           layout.hide();
-          router.push(`/personas/${persona.id}`);
+          setTimeout(() => {
+            router.push(`/personas/${persona.id}`);
+          }, 100);
         }}
       >
         <div className='relative'>

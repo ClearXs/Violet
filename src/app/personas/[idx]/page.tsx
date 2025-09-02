@@ -10,6 +10,7 @@ import { ChevronDown, Maximize, Minimize } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { use, useEffect, useState } from 'react';
 import Avatar from '@/features/avatar';
+import PersonaForm from '@/features/persona/PersonaForm';
 
 export default function PersonaDetails({
   params,
@@ -27,7 +28,7 @@ export default function PersonaDetails({
     personaApi.getPersona(idx!).then((data) => {
       setPersona(data);
     });
-  }, []);
+  }, [idx]);
 
   return (
     <div className='p-3'>
@@ -44,12 +45,12 @@ export default function PersonaDetails({
       </header>
 
       <DraggableWrapper
-        title='Knowledge Source'
+        title={persona?.name}
         width='min-w-96'
         className='z-[100]'
         fullScreenWidth='60%'
         fullScreenHeight='auto'
-        defaultPosition={{ x: 0, y: 100 }}
+        defaultPosition={{ x: 0, y: 50 }}
         onFullScreenChange={setIsFullScreen}
         maximizeButton={
           <Button variant='ghost' size='sm' className='rounded-md p-2'>
@@ -66,8 +67,8 @@ export default function PersonaDetails({
           </Button>
         }
       >
-        <ScrollArea className='p-1'>
-          <div>11</div>
+        <ScrollArea className='flex-1 px-4 h-[400px]'>
+          <PersonaForm persona={persona} />
         </ScrollArea>
       </DraggableWrapper>
 

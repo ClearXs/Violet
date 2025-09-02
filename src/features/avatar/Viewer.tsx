@@ -7,14 +7,14 @@ export type Motion = {
   idle_loop: string;
 };
 
-export type VrmViewerProps = {
+export type ViewerProps = {
   // available vrm model download path
   vrm: string;
   // available motions
   motion: Motion;
 };
 
-export default function VrmViewer({ vrm, motion }: VrmViewerProps) {
+export default function Viewer({ vrm, motion }: ViewerProps) {
   const { viewer } = useContext(ViewerContext);
 
   const loadIdleAnimation = useCallback(

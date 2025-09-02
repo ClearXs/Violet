@@ -324,7 +324,7 @@ const DraggableWrapper: React.FC<DraggableWrapperProps> = ({
       >
         <Card
           className={cn(
-            'z-50 select-none transition-shadow py-2',
+            'z-50 select-none transition-shadow py-2 gap-2',
             (isDragging || isResizing) && !isFullScreen && 'shadow-lg',
             isFullScreen ? 'h-full w-full' : width,
             className
@@ -333,7 +333,7 @@ const DraggableWrapper: React.FC<DraggableWrapperProps> = ({
           <div onPointerDown={onMouseDown} className='cursor-move'>
             {renderHeader()}
           </div>
-          <CardContent className='relative mt-2'>
+          <CardContent className='relative mt-2 px-2'>
             {children}
             {!isFullScreen &&
               !isMinimized &&

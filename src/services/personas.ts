@@ -39,7 +39,7 @@ export interface Config {
   character_setting: string;
 
   /** Reference audio path for TTS */
-  ref_audio_path?: string;
+  ref_audio?: string;
 
   /** Motion file paths */
   motion: PersonaMotion;

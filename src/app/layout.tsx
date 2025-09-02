@@ -4,7 +4,7 @@ import '@/index.css';
 import '@/global.css';
 import { useEffect, useState } from 'react';
 import { Toaster as SonnerToast } from '@/components/ui/sonner';
-import { LayoutProvider } from '@/context/layout-context';
+import { LayoutProvider, useLayout } from '@/context/layout-context';
 import { Progress } from '@/components/ui/progress';
 import NextIntlProvider from '@/context/next-int-context';
 import { FontProvider } from '@/context/font-context';
