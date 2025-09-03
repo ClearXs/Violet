@@ -134,6 +134,7 @@ export class Viewer {
 
     mmdLoader.load('/scene.pmx', (object) => {
       const mesh = object;
+
       this._scene.add(mesh);
     });
   }

@@ -28,7 +28,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "tailwind.config.js",
-    "next-i18next.config.js"
+    "next-i18next.config.js",
   ],
-  "exclude": ["node_modules", "src-tauri"]
+  "exclude": ["node_modules", "src-tauri"],
 }

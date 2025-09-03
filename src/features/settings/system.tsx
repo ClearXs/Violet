@@ -127,7 +127,7 @@ export default function SettingsSystem() {
       title='System Configuration'
       desc='Configure core Violet system settings including paths, storage options, defaults, and memory limits for the AI agent system.'
     >
-      <ScrollArea className='flex-1 px-4 h-[600px]'>
+      <ScrollArea className='flex-1 px-4'>
         <Form {...form}>
           <form className='space-y-6'>
             {/* System Information */}

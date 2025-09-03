@@ -6,6 +6,24 @@ const nextConfig: NextConfig = {
   i18n,
   reactStrictMode: false,
   output: 'standalone',
+  experimental: {
+    turbo: {
+      rules: {
+        '*.vert': {
+          loaders: ['raw-loader'],
+          as: '*.js',
+        },
+        '*.frag': {
+          loaders: ['raw-loader'],
+          as: '*.js',
+        },
+        '*.glsl': {
+          loaders: ['raw-loader'],
+          as: '*.js',
+        },
+      },
+    },
+  },
   rewrites: async () => {
     return [
       {

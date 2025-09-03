@@ -29,7 +29,7 @@ export default function VrmViewer({ vrm, motion }: VrmViewerProps) {
     (canvas: HTMLCanvasElement) => {
       if (canvas) {
         viewer.setup(canvas);
-        // viewer.loadVrm(vrm, loadIdleAnimation);
+        viewer.loadVrm(vrm, loadIdleAnimation);
 
         viewer.setScene();
 
