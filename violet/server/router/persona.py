@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 
 from violet.server.context import get_server
 from violet.server.server import SyncServer
+from violet.services.helpers.persona_manager_helper import Personas
 
 router = APIRouter(prefix="/persona", tags=['persona'])
 
@@ -22,3 +23,9 @@ async def list_personas(server: SyncServer = Depends(get_server)):
 async def get_persona_by_id(id: str, server: SyncServer = Depends(get_server)):
     persona = server.persona_manager.get_persona_by_id(id)
     return persona
+
+
+@router.put('/update_config')
+async def update_persona_config(persona: Personas):
+    persona.save_config()
+    return True

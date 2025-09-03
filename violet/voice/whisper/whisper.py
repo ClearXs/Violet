@@ -19,7 +19,7 @@ def _load_whisper_model(model_path):
 
     with model_lock:
         local_whisper_model = WhisperModel(str(model_path),
-                                           device="cpu", compute_type="int8")
+                                           device="auto", compute_type="auto")
 
         return local_whisper_model
 
@@ -101,5 +101,6 @@ class Whisper:
     def warmup(self):
         # load prepare warm up whisper model
         if self.model is not None:
-            tmp_audio_path = os.path.join(VioletConfig.tmp_dir, "hotwords.mp3")
+            config = VioletConfig.get_config()
+            tmp_audio_path = os.path.join(config.tmp_dir, "hotwords.mp3")
             self.rec(tmp_audio_path)

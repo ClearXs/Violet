@@ -6,6 +6,7 @@ import SettingsModel from './model';
 import SettingsEmbedding from './embedding';
 import SettingsTTS from './tts';
 import SettingsWhisper from './whisper';
+import SettingsSystem from './system';
 
 export type SettingsProps = {};
 
@@ -28,6 +29,7 @@ export default function Settings(props: SettingsProps) {
         )}
         {settingStore.selectKey === 'tts' && <SettingsTTS {...props} />}
         {settingStore.selectKey === 'whisper' && <SettingsWhisper {...props} />}
+        {settingStore.selectKey === 'system' && <SettingsSystem {...props} />}
       </div>
     </div>
   );

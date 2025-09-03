@@ -29,7 +29,9 @@ export default function VrmViewer({ vrm, motion }: VrmViewerProps) {
     (canvas: HTMLCanvasElement) => {
       if (canvas) {
         viewer.setup(canvas);
-        viewer.loadVrm(vrm, loadIdleAnimation);
+        // viewer.loadVrm(vrm, loadIdleAnimation);
+
+        viewer.setScene();
 
         // Drag and DropでVRMを差し替え
         canvas.addEventListener('dragover', function (event) {

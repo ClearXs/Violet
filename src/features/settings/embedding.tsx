@@ -28,6 +28,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import ContentSection from './components/content-section';
 import { Loader2, Save } from 'lucide-react';
 import { debounce } from 'lodash';
+import useConfigStore from '@/store/config';
 
 const embeddingConfigSchema = z.object({
   embedding_endpoint_type: z.enum([
@@ -74,18 +75,15 @@ type EmbeddingConfigFormValues = z.infer<typeof embeddingConfigSchema>;
 
 export default function SettingsEmbedding() {
   const configApi = useConfigApi();
-  const [embeddingConfig, setEmbeddingConfig] = useState<EmbeddingConfig>();
+  const configStore = useConfigStore();
+
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<EmbeddingConfigFormValues>({
     resolver: zodResolver(embeddingConfigSchema),
     mode: 'onChange',
-    values: embeddingConfig,
+    values: configStore.embedding,
   });
-
-  useEffect(() => {
-    configApi.getEmbeddingConfig().then((data) => setEmbeddingConfig(data));
-  }, []);
 
   async function onSubmit(data: EmbeddingConfigFormValues) {
     setIsLoading(true);
@@ -95,7 +93,7 @@ export default function SettingsEmbedding() {
       );
       if (success) {
         toast.success('Configuration updated successfully!');
-        setEmbeddingConfig(data as EmbeddingConfig);
+        configStore.setEmbeddingConfig(data as EmbeddingConfig);
       } else {
         throw new Error('Failed to update configuration');
       }
@@ -126,7 +124,7 @@ export default function SettingsEmbedding() {
           <Button
             type='button'
             variant='outline'
-            onClick={() => form.reset(embeddingConfig)}
+            onClick={() => form.reset(configStore.embedding)}
           >
             Reset
           </Button>

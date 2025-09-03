@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import useConfigApi, { WhisperConfig } from '@/services/config';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +21,7 @@ import ContentSection from './components/content-section';
 import { Loader2, Save, TestTube, Mic, FileAudio } from 'lucide-react';
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
+import useConfigStore from '@/store/config';
 
 const whisperConfigSchema = z.object({
   model: z.string().min(1, {
@@ -35,24 +36,15 @@ type WhisperConfigFormValues = z.infer<typeof whisperConfigSchema>;
 
 export default function SettingsWhisper() {
   const configApi = useConfigApi();
-  const [whisperConfig, setWhisperConfig] = useState<WhisperConfig>();
+  const configStore = useConfigStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
 
   const form = useForm<WhisperConfigFormValues>({
     resolver: zodResolver(whisperConfigSchema),
     mode: 'onChange',
-    values: whisperConfig,
+    values: configStore.whisper,
   });
-
-  useEffect(() => {
-    configApi
-      .getWhisperConfig()
-      .then((data) => setWhisperConfig(data))
-      .catch((error) =>
-        toast.error(`Failed Load Whisper Configuration. ${error}`)
-      );
-  }, []);
 
   async function onSubmit(data: WhisperConfigFormValues) {
     setIsLoading(true);
@@ -62,7 +54,7 @@ export default function SettingsWhisper() {
       );
       if (success) {
         toast.success('Configuration updated successfully!');
-        setWhisperConfig(data as WhisperConfig);
+        configStore.setWhisperConfig(data as WhisperConfig);
       } else {
         throw new Error('Failed to update configuration');
       }
@@ -113,7 +105,7 @@ export default function SettingsWhisper() {
           <Button
             type='button'
             variant='outline'
-            onClick={() => form.reset(whisperConfig)}
+            onClick={() => form.reset(configStore.whisper)}
           >
             Reset
           </Button>
@@ -123,7 +115,6 @@ export default function SettingsWhisper() {
       <ScrollArea className='flex-1 px-4'>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
-            {/* Engine Field (Hidden but required) */}
             <FormField
               control={form.control}
               name='engine'
@@ -132,7 +123,6 @@ export default function SettingsWhisper() {
               )}
             />
 
-            {/* Quick Presets */}
             <div className='space-y-4'>
               <h4 className='text-lg font-semibold'>Quick Presets</h4>
               <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2'>

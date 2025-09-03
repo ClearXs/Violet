@@ -169,19 +169,11 @@ const usePersonaApi = () => {
     });
   };
 
-  /**
-   * Upload persona thumbnail
-   */
-  const uploadPersonaThumb = (
-    id: string,
-    file: File
-  ): Promise<R<{ thumb_url: string }>> => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    return fetch(`/api/persona/${id}/thumb`, {
-      method: 'POST',
-      body: formData,
+  const updatePersonaConfig = (persona: Personas) => {
+    return fetch(`/api/persona/update_config`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(persona),
     }).then((res) => {
       return res.json();
     });
@@ -196,7 +188,7 @@ const usePersonaApi = () => {
     activatePersona,
     deactivatePersona,
     getPersona,
-    uploadPersonaThumb,
+    updatePersonaConfig,
   };
 };
 

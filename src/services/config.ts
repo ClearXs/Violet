@@ -184,6 +184,40 @@ export interface WhisperConfig {
   api_key?: string;
 }
 
+export interface VioletConfig {
+  base_path: string;
+  violet_config_path: string;
+  config_path: string;
+  embedding_config_path: string;
+  tts_config_path: string;
+  whisper_config_path: string;
+  preset: string;
+  persona: string;
+  human: string;
+  model_storage_path: string;
+  file_storage_path: string;
+  image_storage_path: string;
+  persona_path: string;
+  prompts_path: string;
+  tmp_dir: string;
+  archival_storage_type: 'sqlite' | 'local' | 'db';
+  archival_storage_path: string;
+  archival_storage_uri?: string | null;
+  recall_storage_type: 'sqlite' | 'local' | 'db';
+  recall_storage_path: string;
+  recall_storage_uri?: string | null;
+  metadata_storage_type: 'sqlite' | 'local' | 'db';
+  metadata_storage_path: string;
+  metadata_storage_uri?: string | null;
+  persistence_manager_type?: 'in-memory' | 'db' | null;
+  persistence_manager_save_file?: string | null;
+  persistence_manager_uri?: string | null;
+  violet_version: string;
+  policies_accepted: boolean;
+  core_memory_persona_char_limit: number;
+  core_memory_human_char_limit: number;
+}
+
 const useConfigApi = () => {
   const getLLMConfig = (): Promise<LLMConfig> => {
     return fetch('/api/config/llm', {
@@ -269,6 +303,18 @@ const useConfigApi = () => {
     });
   };
 
+  const getVioletConfig = (): Promise<VioletConfig> => {
+    return fetch('/api/config/system', {
+      method: 'GET',
+      headers: { 'content-type': 'application/json' },
+    }).then((res) => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return res.json();
+    });
+  };
+
   return {
     getLLMConfig,
     updateLLMConfig,
@@ -278,6 +324,7 @@ const useConfigApi = () => {
     updateTTSConfig,
     getWhisperConfig,
     updateWhisperConfig,
+    getVioletConfig,
   };
 };
 

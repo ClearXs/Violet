@@ -1,0 +1,460 @@
+import { Personas } from '@/services/personas';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import z from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Edit, ImageIcon } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { toast } from 'sonner';
+import { invoke } from '@tauri-apps/api/core';
+import FilePicker from '@/components/file-picker';
+import useConfigStore from '@/store/config';
+import useLocalApi from '@/services/local';
+import {
+  FloatingPanelBody,
+  FloatingPanelCloseButton,
+  FloatingPanelContent,
+  FloatingPanelFooter,
+  FloatingPanelForm,
+  FloatingPanelRoot,
+  FloatingPanelTextarea,
+  FloatingPanelTrigger,
+} from '@/components/ui/floating-panel';
+import { debounce } from 'lodash';
+
+const personaSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, {
+    message: 'Persona name is required.',
+  }),
+  activated: z.boolean(),
+  r_path: z.string().min(1, {
+    message: 'Relative path is required.',
+  }),
+  thumb: z.string().optional(),
+  updated_at: z.string().optional(),
+  user_id: z.string().optional(),
+  created_at: z.string().optional(),
+  character_setting: z.string().optional(),
+  config: z
+    .object({
+      character_setting: z.string().optional(),
+      ref_audio: z.string().optional(),
+      motion: z
+        .object({
+          idle_loop: z.string().optional(),
+        })
+        .optional(),
+      vrm: z.string().optional(),
+      prompt_lang: z.string().optional(),
+    })
+    .optional(),
+});
+
+type PersonaFormValues = z.infer<typeof personaSchema>;
+
+interface PersonaFormProps {
+  persona: Personas;
+  updatePersona: (persona: Personas) => void;
+}
+
+const PersonaForm = ({ persona, updatePersona }: PersonaFormProps) => {
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [thumbnailLoading, setThumbnailLoading] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
+  const localApi = useLocalApi();
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const configStore = useConfigStore();
+
+  const form = useForm<PersonaFormValues>({
+    resolver: zodResolver(personaSchema),
+    mode: 'onChange',
+    values: persona || {
+      activated: false,
+      name: '',
+      r_path: '',
+      thumb: '',
+      user_id: '',
+      character_setting: '',
+      config: {
+        character_setting: '',
+        ref_audio: '',
+        motion: {
+          idle_loop: '',
+        },
+        vrm: '',
+        prompt_lang: '',
+      },
+    },
+  });
+
+  useEffect(() => {
+    if (persona) {
+      form.reset(persona);
+    }
+  }, [persona, form]);
+
+  const playAudio = () => {
+    if (!persona?.config?.ref_audio) return;
+
+    setIsPlayingAudio(true);
+
+    try {
+      const audioUrl = `/api/file/download?path=${persona.r_path}/${persona.config.ref_audio}`;
+      if (audioRef.current) {
+        audioRef.current.src = audioUrl;
+        audioRef.current.play().finally(() => {
+          setIsPlayingAudio(false);
+        });
+      }
+    } catch (error) {
+      toast.error(`Error playing audio: ${error}`);
+    }
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlayingAudio(false);
+  };
+
+  const ThumbnailPreview = ({ thumbPath }: { thumbPath?: string }) => {
+    if (!thumbPath) {
+      return (
+        <div className='w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50'>
+          <ImageIcon className='w-6 h-6 text-gray-400' />
+        </div>
+      );
+    }
+
+    if (thumbnailLoading) {
+      return <Skeleton className='w-16 h-16 rounded-lg' />;
+    }
+
+    if (thumbnailError) {
+      return (
+        <div className='w-16 h-16 border border-red-300 rounded-lg flex items-center justify-center bg-red-50'>
+          <span className='text-xs text-red-500'>No data</span>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={`/api/file/download_image?path=${thumbPath}`}
+        alt='Thumbnail'
+        className='w-16 h-16 object-cover rounded-lg border'
+        onLoad={() => setThumbnailLoading(false)}
+        onError={() => {
+          setThumbnailError(true);
+          setThumbnailLoading(false);
+        }}
+        onLoadStart={() => {
+          setThumbnailLoading(true);
+          setThumbnailError(false);
+        }}
+      />
+    );
+  };
+
+  return (
+    <div className='pr-3'>
+      <audio ref={audioRef} onEnded={() => setIsPlayingAudio(false)} />
+
+      <Form {...form}>
+        <form className='space-y-4'>
+          <div className='space-y-3'>
+            <h4 className='text-xs font-semibold text-muted-foreground uppercase tracking-wide'>
+              Basic Information
+            </h4>
+
+            <FormField
+              control={form.control}
+              name='name'
+              render={({ field }) => (
+                <FormItem className='space-y-1'>
+                  <FormLabel className='text-xs'>Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder='Enter persona name'
+                      className='h-8 text-xs'
+                      disabled
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage className='text-xs' />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='activated'
+              disabled
+              render={({ field }) => (
+                <FormItem className='flex items-center justify-between space-y-0 py-2'>
+                  <FormLabel className='text-xs'>Activated</FormLabel>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      className='scale-75'
+                      disabled
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='r_path'
+              render={({ field }) => (
+                <FormItem className='space-y-1'>
+                  <FormLabel className='text-xs'>Relative Path</FormLabel>
+                  <FormControl>
+                    <FilePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder='Select relative path'
+                      type='folder'
+                      showPreview={true}
+                      disabled
+                      onPreview={() => {
+                        invoke('reveal_finder', {
+                          path:
+                            configStore.system?.base_path + '/' + field.value,
+                        });
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage className='text-xs' />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='thumb'
+              render={({ field }) => (
+                <FormItem className='space-y-1'>
+                  <FormLabel className='text-xs'>Thumbnail</FormLabel>
+                  <FormControl>
+                    <div className='flex gap-2 items-start'>
+                      <div className='flex-1'>
+                        <FilePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder='Select thumbnail image'
+                          type='image'
+                          accept='image/*'
+                        />
+                      </div>
+                      <ThumbnailPreview thumbPath={field.value} />
+                    </div>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className='space-y-3 pt-2 border-t'>
+            <h4 className='text-xs font-semibold text-muted-foreground uppercase tracking-wide'>
+              Configuration
+            </h4>
+
+            <FormField
+              control={form.control}
+              name='config.character_setting'
+              render={({ field }) => (
+                <FormItem className='space-y-1'>
+                  <FormLabel className='text-xs'>
+                    Character Setting File
+                  </FormLabel>
+                  <FormControl>
+                    <div className='flex flex-row gap-1'>
+                      <FilePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder='Select character setting file'
+                        type='file'
+                        accept='.json,.txt,.yaml,.yml'
+                        showPreview={true}
+                        disabled
+                        onPreview={async () => {
+                          const path = await localApi.join(
+                            configStore.system!.base_path,
+                            form.getValues('r_path'),
+                            field.value!
+                          );
+
+                          invoke('reveal_finder', {
+                            path,
+                          });
+                        }}
+                      />
+                      <FloatingPanelRoot>
+                        <FloatingPanelTrigger title='Character Settings'>
+                          <Edit className='ml-auto w-4 h-4' />
+                        </FloatingPanelTrigger>
+                        <FloatingPanelContent className='w-80'>
+                          <FloatingPanelForm>
+                            <FloatingPanelBody>
+                              <FloatingPanelTextarea
+                                id='note-input'
+                                className='min-h-[200px]'
+                                value={form.getValues('character_setting')}
+                                onChange={debounce((note) => {
+                                  updatePersona({
+                                    ...persona,
+                                    character_setting: note,
+                                  });
+                                  form.setValue('character_setting', note);
+                                }, 500)}
+                              />
+                            </FloatingPanelBody>
+                            <FloatingPanelFooter>
+                              <FloatingPanelCloseButton />
+                            </FloatingPanelFooter>
+                          </FloatingPanelForm>
+                        </FloatingPanelContent>
+                      </FloatingPanelRoot>
+                    </div>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='config.ref_audio'
+              render={({ field }) => (
+                <FormItem className='space-y-1'>
+                  <FormLabel className='text-xs'>Audio</FormLabel>
+                  <FormControl>
+                    <FilePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder='Select reference audio file'
+                      type='audio'
+                      accept='audio/*'
+                      showPreview={true}
+                      onPreview={isPlayingAudio ? stopAudio : playAudio}
+                      isPlaying={isPlayingAudio}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='config.vrm'
+              render={({ field }) => (
+                <FormItem className='space-y-1'>
+                  <FormLabel className='text-xs'>VRM File</FormLabel>
+                  <FormControl>
+                    <FilePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder='Select VRM model file'
+                      type='file'
+                      accept='.vrm'
+                      showPreview={true}
+                      onPreview={async () => {
+                        const path = await localApi.join(
+                          configStore.system!.base_path,
+                          form.getValues('r_path'),
+                          field.value!
+                        );
+
+                        invoke('reveal_finder', {
+                          path,
+                        });
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='config.prompt_lang'
+              render={({ field }) => (
+                <FormItem className='space-y-1'>
+                  <FormLabel className='text-xs'>Language</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className='h-8 text-xs'>
+                        <SelectValue placeholder='Select language' />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className='z-[1000]'>
+                      <SelectItem value='zh'>中文</SelectItem>
+                      <SelectItem value='en'>English</SelectItem>
+                      <SelectItem value='ja'>日語</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='config.motion.idle_loop'
+              render={({ field }) => (
+                <FormItem className='space-y-1'>
+                  <FormLabel className='text-xs'>Idle Motion</FormLabel>
+                  <FormControl>
+                    <FilePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder='Select idle animation file'
+                      type='file'
+                      accept='.vmd,.bvh,.fbx'
+                      showPreview={true}
+                      onPreview={async () => {
+                        const path = await localApi.join(
+                          configStore.system!.base_path,
+                          form.getValues('r_path'),
+                          field.value!
+                        );
+
+                        invoke('reveal_finder', {
+                          path,
+                        });
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+        </form>
+      </Form>
+    </div>
+  );
+};
+
+export default PersonaForm;

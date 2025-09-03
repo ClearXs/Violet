@@ -51,7 +51,7 @@ const useSpeakApi = () => {
   };
 
   const getTtsAudio = (text: string) => async (): Promise<ArrayBuffer> => {
-    const response = await fetch(`/api/pipeline_chat?text=${text}`);
+    const response = await fetch(`/api/pipeline?text=${text}`);
     if (!response.ok) {
       throw new Error('Failed to fetch TTS audio');
     }

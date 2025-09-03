@@ -9,34 +9,32 @@ class LiveWhisper(Whisper):
     def __init__(self, config):
         super().__init__(config)
 
-        from whisper_timestamped import transcribe_timestamped
-
-        self.transcribe_timestamped = transcribe_timestamped
+        self.transcribe_kargs = {}
 
     def transcribe(self, audio, init_prompt=""):
-        result = self.transcribe_timestamped(
-            self.model,
+        segments, info = self.model.transcribe(
             audio,
             initial_prompt=init_prompt,
-            verbose=None,
+            beam_size=5,
+            word_timestamps=True,
             condition_on_previous_text=True,
             **self.transcribe_kargs,
         )
-        return result
+        return list(segments)
 
     def ts_words(self, r) -> List[ASRToken]:
         """
         Converts the whisper_timestamped result to a list of ASRToken objects.
         """
         tokens = []
-        for segment in r["segments"]:
-            for word in segment["words"]:
-                token = ASRToken(word["start"], word["end"], word["text"])
+        for segment in r:
+            for word in segment.words:
+                token = ASRToken(word.start, word.end, word.word)
                 tokens.append(token)
         return tokens
 
     def segments_end_ts(self, res) -> List[float]:
-        return [segment["end"] for segment in res["segments"]]
+        return [segment.end for segment in res]
 
     def use_vad(self):
         self.transcribe_kargs["vad"] = True

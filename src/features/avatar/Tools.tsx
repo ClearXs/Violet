@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import LiveKit from './voices/livekit';
 import useRecorder from './voices/record';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff } from 'lucide-react';
+import { Loader2, MessageSquare, Mic, MicOff, Send } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import useSpeakApi from './voices/speak';
+import { useViewer } from './vrm/viewerContext';
 
 type ToolsProps = {
   liveKit: LiveKit;
@@ -11,11 +14,19 @@ type ToolsProps = {
 export default function Tools({ liveKit }: ToolsProps) {
   const { start, stop, analyserRef } = useRecorder();
   const [recording, setRecording] = useState(false);
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textMessage, setTextMessage] = useState('');
+
+  const [textLoading, setTextLoading] = useState(false);
 
   const waveCanvasRef = useRef<HTMLCanvasElement | undefined>(undefined);
   const waveRenderRef = useRef<CanvasRenderingContext2D | undefined>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const animationFrameRef = useRef<number | undefined>(undefined);
+
+  const speakApi = useSpeakApi();
+  const viewer = useViewer();
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyboard);
@@ -142,6 +153,35 @@ export default function Tools({ liveKit }: ToolsProps) {
     }
   }, [recording, sendVoice, start, stop]);
 
+  const handleToggleTextInput = useCallback(() => {
+    setShowTextInput((prev) => !prev);
+    if (showTextInput) {
+      setTextMessage('');
+    }
+  }, [showTextInput]);
+
+  const handleKeyPress = useCallback(
+    async (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter' && !textLoading) {
+        await sendTextMessage(textMessage);
+      }
+    },
+    [textMessage]
+  );
+
+  const sendTextMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+
+      setTextLoading(true);
+      await speakApi.speak('neutral', viewer, text, undefined, () => {
+        setTextMessage('');
+        setTextLoading(false);
+      });
+    },
+    [textMessage]
+  );
+
   const handleKeyboard = useCallback(
     async (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'x') {
@@ -177,6 +217,34 @@ export default function Tools({ liveKit }: ToolsProps) {
         >
           <Mic />
         </Button>
+      )}
+
+      <Button size='icon' onClick={handleToggleTextInput}>
+        <MessageSquare />
+      </Button>
+
+      {showTextInput && (
+        <div className='flex flex-row gap-1'>
+          <Input
+            ref={textInputRef}
+            value={textMessage}
+            onChange={(e) => setTextMessage(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder='Type your message...'
+            className='flex-1'
+          />
+          <Button
+            size='icon'
+            onClick={() => sendTextMessage(textMessage)}
+            disabled={!textMessage.trim() || textLoading}
+          >
+            {textLoading ? (
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+            ) : (
+              <Send />
+            )}
+          </Button>
+        </div>
       )}
     </div>
   );

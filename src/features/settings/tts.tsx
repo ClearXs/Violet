@@ -6,7 +6,7 @@ import useConfigApi, {
   TTSVersionConfig,
   TTSVersion,
 } from '@/services/config';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,6 +34,7 @@ import ContentSection from './components/content-section';
 import { Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
+import useConfigStore from '@/store/config';
 
 const ttsVersionConfigSchema = z.object({
   bert_base_path: z.string().min(1, {
@@ -69,19 +70,15 @@ type TTSConfigFormValues = z.infer<typeof ttsConfigSchema>;
 
 export default function SettingsTTS() {
   const configApi = useConfigApi();
-  const [ttsConfig, setTtsConfig] = useState<TTSConfig>();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TTSVersion>('custom');
+  const configStore = useConfigStore();
 
   const form = useForm<TTSConfigFormValues>({
     resolver: zodResolver(ttsConfigSchema),
     mode: 'onChange',
-    values: ttsConfig,
+    values: configStore.tts,
   });
-
-  useEffect(() => {
-    configApi.getTTSConfig().then((data) => setTtsConfig(data));
-  }, []);
 
   async function onSubmit(data: TTSConfigFormValues) {
     setIsLoading(true);
@@ -89,7 +86,7 @@ export default function SettingsTTS() {
       const success = await configApi.updateTTSConfig(data as TTSConfig);
       if (success) {
         toast.success('Configuration updated successfully!');
-        setTtsConfig(data as TTSConfig);
+        configStore.setTTSConfig(data as TTSConfig);
       } else {
         throw new Error('Failed to update configuration');
       }
@@ -268,7 +265,7 @@ export default function SettingsTTS() {
           <Button
             type='button'
             variant='outline'
-            onClick={() => form.reset(ttsConfig)}
+            onClick={() => form.reset(configStore.tts)}
           >
             Reset
           </Button>

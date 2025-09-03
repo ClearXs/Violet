@@ -48,6 +48,20 @@ class Personas(Persona):
             with open(cs_path, 'r') as f:
                 self.character_setting = f.read()
 
+    def save_config(self):
+
+        if self.config:
+            config_path = os.path.join(
+                get_absolute_path(self.r_path), 'config.yaml')
+            with open(config_path, 'w') as f:
+                yaml.safe_dump(self.config.model_dump(), f)
+
+        if self.character_setting:
+            cs_path = os.path.join(get_absolute_path(
+                self.r_path), self.config.character_setting)
+            with open(cs_path, 'w') as f:
+                f.write(self.character_setting)
+
     def get_absolute_for(self, name: str) -> str:
 
         return os.path.join(self.r_path, name)

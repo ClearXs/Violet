@@ -376,7 +376,6 @@ class SyncServer(Server):
             config.recall_storage_uri = settings.violet_pg_uri_no_default
             config.archival_storage_type = "postgres"
             config.archival_storage_uri = settings.violet_pg_uri_no_default
-        config.save()
         self.config = config
 
         # Managers that interface with data models

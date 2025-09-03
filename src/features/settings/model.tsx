@@ -29,6 +29,7 @@ import { Slider } from '@/components/ui/slider';
 import ContentSection from './components/content-section';
 import { Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import useConfigStore from '@/store/config';
 
 const llmConfigSchema = z.object({
   model: z.string().min(1, {
@@ -57,24 +58,14 @@ type LLMConfigFormValues = z.infer<typeof llmConfigSchema>;
 
 export default function SettingsModel() {
   const configApi = useConfigApi();
-  const [llmConfig, setLlmConfig] = useState<LLMConfig>();
-
+  const configStore = useConfigStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LLMConfigFormValues>({
     resolver: zodResolver(llmConfigSchema),
     mode: 'onChange',
-    values: llmConfig,
+    values: configStore.llm,
   });
-
-  useEffect(() => {
-    configApi
-      .getLLMConfig()
-      .then((data) => setLlmConfig(data))
-      .catch((error) =>
-        toast.error(`Failed to load LLM configuration: ${error}`)
-      );
-  }, []);
 
   async function onSubmit(data: LLMConfigFormValues) {
     setIsLoading(true);
@@ -82,7 +73,7 @@ export default function SettingsModel() {
       const success = await configApi.updateLLMConfig(data as LLMConfig);
       if (success) {
         toast.success('Configuration updated successfully!');
-        setLlmConfig(data as LLMConfig);
+        configStore.setLLMConfig(data as LLMConfig);
       } else {
         throw new Error('Failed to update configuration');
       }
@@ -110,7 +101,7 @@ export default function SettingsModel() {
           <Button
             type='button'
             variant='outline'
-            onClick={() => form.reset(llmConfig)}
+            onClick={() => form.reset(configStore.llm)}
           >
             Reset
           </Button>

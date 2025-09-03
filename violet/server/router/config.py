@@ -140,3 +140,10 @@ async def update_whisper_config(whisper_config: WhisperConfig,
         whisper_handler.set_whisper_model(whisper_config)
 
     return True
+
+
+@router.get('/system')
+async def get_system_config():
+    config = VioletConfig.get_config()
+
+    return config

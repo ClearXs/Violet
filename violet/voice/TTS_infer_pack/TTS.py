@@ -1448,11 +1448,13 @@ class TTS:
         self.cnhuhbert_model = None
 
         import gc
+
         gc.collect()
 
     def warmup(self):
         if self.t2s_model is not None:
-            ref_audio_path = os.path.join(VioletConfig.tmp_dir, 'hotwords.mp3')
+            config = VioletConfig.get_config()
+            ref_audio_path = os.path.join(config.tmp_dir, 'hotwords.mp3')
             req = {
                 "text": "hello world",
                 "text_lang": "en",

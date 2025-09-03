@@ -6,8 +6,8 @@ from fastapi.params import Query
 import yaml
 from pathlib import Path
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Tuple
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from typing import List, Optional, Dict, Any
+from fastapi import Depends, FastAPI,  HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -1393,8 +1393,8 @@ async def trigger_reflexion(request: ReflexionRequest,
             status_code=500, detail=f"Reflexion process failed: {str(e)}")
 
 
-@app.get("/pipeline_chat")
-async def pipeline_chat(
+@app.get("/pipeline")
+async def pipeline(
         text: str = Query(),
         streaming_mode: bool = Query(True),
         media_type: str = Query("wav"),
@@ -1425,59 +1425,6 @@ async def pipeline_chat(
         return await tts_handle({"text": output, **tts_request.model_dump()}, tts_pipeline)
     except Exception as e:
         logger.error(f"Error in pipeline_chat endpoint: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Pipeline processing failed: {str(e)}")
-
-
-@app.post("/pipeline")
-async def pipeline(
-        audio_file: UploadFile = File(...),
-        streaming_mode: bool = Query(True),
-        media_type: str = Query("wav"),
-        agent: AgentWrapper = Depends(get_agent),
-        server: SyncServer = Depends(get_server),
-        tts_pipeline: TTS = Depends(get_tts_pipeline)):
-
-    async def _asr() -> Tuple[str, str]:
-        config = VioletConfig.get_config()
-        file_storage_path = config.file_storage_path
-
-        filename = audio_file.filename
-        data = await audio_file.read()
-        file_path = os.path.join(file_storage_path, filename)
-        with open(file_path, "wb") as f:
-            f.write(data)
-
-        whisper_handler = Whisper()
-
-        try:
-            return whisper_handler.rec(file_path)
-        except Exception as e:
-            logger.error(f"Error in ASR process: {str(e)}")
-            raise e
-
-    async def _chat(text):
-        return agent.chat(message=text)
-
-    try:
-        text, _ = await _asr()
-        output = await _chat(text)
-
-        tts_request = TTS_Request()
-        tts_request.text = output
-        tts_request.text_lang = 'ja'
-
-        personas = server.persona_manager.personas
-        ref_audio_path = personas.get_absolute_for(personas.config.ref_audio)
-        tts_request.ref_audio_path = ref_audio_path
-        tts_request.prompt_lang = personas.config.prompt_lang
-
-        tts_request.streaming_mode = streaming_mode
-
-        tts_request.media_type = media_type
-
-        return await tts_handle({"text": output, **tts_request.model_dump()}, tts_pipeline)
-    except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Pipeline processing failed: {str(e)}")
 

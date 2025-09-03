@@ -33,7 +33,7 @@ FFmpeg is required and must be installed.
 | Windows | Download .exe from https://ffmpeg.org/download.html and add to PATH |
 
 
-## Acknowledgement
+## Acknowledgement 🙏
 
 Thanks to the following projects for their open-source contributions.
 
@@ -42,3 +42,4 @@ Thanks to the following projects for their open-source contributions.
 - [letta](https://github.com/letta-ai/letta.git)
 - [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit)
 - [local-chat-vrm](https://github.com/pixiv/local-chat-vrm)
+- [gost](https://github.com/go-gost/gost)

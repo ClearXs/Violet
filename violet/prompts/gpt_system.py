@@ -5,7 +5,9 @@ from violet.config import VioletConfig
 
 def get_system_text(key):
     filename = f"{key}.txt"
-    prompts_path = VioletConfig.prompts_path
+
+    config = VioletConfig.get_config()
+    prompts_path = config.prompts_path
     file_path = os.path.join(prompts_path, "system", filename)
 
     # first look in prompts/system/*.txt

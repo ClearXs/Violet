@@ -1,12 +1,8 @@
 import * as THREE from 'three';
 import { Model } from './model';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { MMDLoader } from '@/lib/MMD/MMDLoader';
 
-/**
- * three.jsを使った3Dビューワー
- *
- * setup()でcanvasを渡してから使う
- */
 export class Viewer {
   public isReady: boolean;
   public model?: Model;
@@ -22,6 +18,7 @@ export class Viewer {
 
     // scene
     const scene = new THREE.Scene();
+
     this._scene = scene;
 
     // light
@@ -63,7 +60,6 @@ export class Viewer {
 
       if (onPostProcessor) await onPostProcessor?.(this.model);
 
-      // HACK: アニメーションの原点がずれているので再生後にカメラ位置を調整する
       requestAnimationFrame(() => {
         this.resetCamera();
       });
@@ -77,9 +73,6 @@ export class Viewer {
     }
   }
 
-  /**
-   * Reactで管理しているCanvasを後から設定する
-   */
   public setup(canvas: HTMLCanvasElement) {
     const parentElement = canvas.parentElement;
     const width = parentElement?.clientWidth || canvas.width;
@@ -109,7 +102,9 @@ export class Viewer {
     window.addEventListener('resize', () => {
       this.resize();
     });
+
     this.isReady = true;
+
     this.update();
   }
 
@@ -132,6 +127,15 @@ export class Viewer {
     this._camera.aspect =
       parentElement.clientWidth / parentElement.clientHeight;
     this._camera.updateProjectionMatrix();
+  }
+
+  public setScene() {
+    const mmdLoader = new MMDLoader();
+
+    mmdLoader.load('/scene.pmx', (object) => {
+      const mesh = object;
+      this._scene.add(mesh);
+    });
   }
 
   /**

@@ -1,6 +1,6 @@
-import configparser
 import os
 from dataclasses import dataclass
+from typing import Dict
 
 import violet
 from violet.constants import (
@@ -19,40 +19,21 @@ from violet.schemas.whisper_config import WhisperConfig
 
 logger = get_logger(__name__)
 
-# helper functions for writing to configs
-
-
-def get_field(config, section, field):
-    if section not in config:
-        return None
-    if config.has_option(section, field):
-        return config.get(section, field)
-    else:
-        return None
-
-
-def set_field(config, section, field, value):
-    if value is None:  # cannot write None
-        return
-    if section not in config:  # create section
-        config.add_section(section)
-    config.set(section, field, value)
-
-
 config = None
 
 
 @dataclass
-class VioletConfig:
+class VioletConfig(Dict):
     base_path: str = VIOLET_DIR
 
     violet_config_path = os.path.join(base_path, "config")
 
     # config path
-    config_path = os.path.join(base_path, "config.yaml")
-    embedding_config_path = os.path.join(base_path, "embedding_config.yaml")
-    tts_config_path = os.path.join(base_path, "tts_infer.yaml")
-    whisper_config_path = os.path.join(base_path, 'whisper.yaml')
+    violet_config_path: str = None
+    config_path: str = None
+    embedding_config_path: str = None
+    tts_config_path: str = None
+    whisper_config_path: str = None
 
     # preset
     preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
@@ -62,16 +43,16 @@ class VioletConfig:
     human: str = DEFAULT_HUMAN
 
     # model storage path
-    model_storage_path = VIOLET_DIR + "/models"
+    model_storage_path: str = None
     # file storage path
-    file_storage_path = VIOLET_DIR + "/files"
+    file_storage_path: str = None
     # image storage path
-    image_storage_path = VIOLET_DIR + '/images'
+    image_storage_path: str = None
     # persona assert folder path
-    persona_path = VIOLET_DIR + '/personas'
-    prompts_path = VIOLET_DIR + '/prompts'
+    persona_path: str = None
+    prompts_path: str = None
     # tmp dir
-    tmp_dir = VIOLET_DIR + '/tmp'
+    tmp_dir: str = None
 
     # database configs: archival
     archival_storage_type: str = "sqlite"  # local, db
@@ -104,115 +85,37 @@ class VioletConfig:
     core_memory_human_char_limit: int = CORE_MEMORY_HUMAN_CHAR_LIMIT
 
     def __post_init__(self):
-        # ensure types
-        # self.embedding_chunk_size = int(self.embedding_chunk_size)
-        # self.embedding_dim = int(self.embedding_dim)
-        # self.context_window = int(self.context_window)
-        pass
+        self.violet_config_path = os.path.join(self.base_path, "config")
+        self.config_path = os.path.join(self.base_path, "config.yaml")
+        self.embedding_config_path = os.path.join(
+            self.base_path, "embedding_config.yaml")
+        self.tts_config_path = os.path.join(
+            self.base_path, "tts_infer.yaml")
+        self.whisper_config_path = os.path.join(
+            self.base_path, "whisper.yaml")
+        self.model_storage_path = os.path.join(self.base_path, "models")
+        self.file_storage_path = os.path.join(self.base_path, "files")
+        self.image_storage_path = os.path.join(self.base_path, "images")
+        self.persona_path = os.path.join(self.base_path, "personas")
+        self.prompts_path = os.path.join(self.base_path, "prompts")
+        self.tmp_dir = os.path.join(self.base_path, "tmp")
+
+        # ensure all configuration directories exist
+        self.create_config_dir()
+        self.create_model_storage_dir()
+        self.create_file_storage_dir()
+        self.create_personas_dir()
+        self.create_prompts_dir()
+        self.create_config_dir()  # create dirs
 
     @classmethod
     def load(cls) -> "VioletConfig":
-        # avoid circular import
-        config = configparser.ConfigParser()
 
-        # allow overriding with env variables
-        if os.getenv("VIOLET_CONFIG_PATH"):
-            violet_config_path = os.getenv("VIOLET_CONFIG_PATH")
-        else:
-            violet_config_path = VioletConfig.violet_config_path
-
-        # insure all configuration directories exist
-        cls.create_config_dir()
-        cls.create_model_storage_dir()
-        cls.create_file_storage_dir()
-        cls.create_personas_dir()
-        cls.create_prompts_dir()
-
-        if os.path.exists(violet_config_path):
-            # read existing config
-            config.read(violet_config_path)
-
-            # Everything else
-            config_dict = {
-                # Two prepared configs
-                # "default_llm_config": llm_config,
-                # "default_embedding_config": embedding_config,
-                # Agent related
-                "preset": get_field(config, "defaults", "preset"),
-                "persona": get_field(config, "defaults", "persona"),
-                "human": get_field(config, "defaults", "human"),
-                "agent": get_field(config, "defaults", "agent"),
-                # Storage related
-                "archival_storage_type": get_field(config, "archival_storage", "type"),
-                "archival_storage_path": get_field(config, "archival_storage", "path"),
-                "archival_storage_uri": get_field(config, "archival_storage", "uri"),
-                "recall_storage_type": get_field(config, "recall_storage", "type"),
-                "recall_storage_path": get_field(config, "recall_storage", "path"),
-                "recall_storage_uri": get_field(config, "recall_storage", "uri"),
-                "metadata_storage_type": get_field(config, "metadata_storage", "type"),
-                "metadata_storage_path": get_field(config, "metadata_storage", "path"),
-                "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
-                # Misc
-                "violet_config_path": violet_config_path,
-                "violet_version": get_field(config, "version", "violet_version"),
-            }
-            # Don't include null values
-            config_dict = {k: v for k, v in config_dict.items()
-                           if v is not None}
-
-            return cls()
-
-        # assert embedding_config is not None, "Embedding config must be provided if config does not exist"
-        # assert llm_config is not None, "LLM config must be provided if config does not exist"
-
-        # create new config
         config = cls()
-
-        config.create_config_dir()  # create dirs
 
         return config
 
-    def save(self):
-        import violet
-
-        config = configparser.ConfigParser()
-
-        # CLI defaults
-        set_field(config, "defaults", "preset", self.preset)
-        set_field(config, "defaults", "persona", self.persona)
-        set_field(config, "defaults", "human", self.human)
-
-        # archival storage
-        set_field(config, "archival_storage",
-                  "type", self.archival_storage_type)
-        set_field(config, "archival_storage",
-                  "path", self.archival_storage_path)
-        set_field(config, "archival_storage", "uri", self.archival_storage_uri)
-
-        # recall storage
-        set_field(config, "recall_storage", "type", self.recall_storage_type)
-        set_field(config, "recall_storage", "path", self.recall_storage_path)
-        set_field(config, "recall_storage", "uri", self.recall_storage_uri)
-
-        # metadata storage
-        set_field(config, "metadata_storage",
-                  "type", self.metadata_storage_type)
-        set_field(config, "metadata_storage",
-                  "path", self.metadata_storage_path)
-        set_field(config, "metadata_storage", "uri", self.metadata_storage_uri)
-
-        # set version
-        set_field(config, "version", "violet_version", violet.__version__)
-
-        # always make sure all directories are present
-        self.create_config_dir()
-
-        with open(self.violet_config_path, "w", encoding="utf-8") as f:
-            config.write(f)
-        logger.debug(f"Saved Config:  {self.violet_config_path}")
-
-    @staticmethod
-    def create_config_dir():
+    def create_config_dir(self):
         if not os.path.exists(VIOLET_DIR):
             os.makedirs(VIOLET_DIR, exist_ok=True)
 
@@ -221,33 +124,30 @@ class VioletConfig:
         if not os.path.exists(tmp_folder):
             os.makedirs(tmp_folder, exist_ok=True)
 
-    @classmethod
-    def create_model_storage_dir(cls):
-        model_storage_path = cls.model_storage_path
+    def create_model_storage_dir(self):
+        model_storage_path = self.model_storage_path
         if os.path.exists(model_storage_path) is False:
             os.makedirs(model_storage_path, exist_ok=True)
 
-    @classmethod
-    def create_file_storage_dir(cls):
-        file_storage_path = cls.file_storage_path
+    def create_file_storage_dir(self):
+        file_storage_path = self.file_storage_path
         if os.path.exists(file_storage_path) is False:
             os.makedirs(file_storage_path, exist_ok=True)
 
-    @classmethod
-    def create_personas_dir(cls):
-        persona_path = cls.persona_path
+    def create_personas_dir(self):
+        persona_path = self.persona_path
         if os.path.exists(persona_path) is False:
             os.makedirs(persona_path, exist_ok=True)
 
-    @classmethod
-    def create_prompts_dir(cls):
-        prompts_path = cls.prompts_path
+    def create_prompts_dir(self):
+        prompts_path = self.prompts_path
         if os.path.exists(prompts_path) is False:
             os.makedirs(prompts_path, exist_ok=True)
 
     @staticmethod
     def setup():
         global config
+
         config = VioletConfig.load()
 
     @staticmethod
@@ -264,13 +164,14 @@ class VioletConfig:
         """
         Get violet path config.yaml (.violet/config.yaml) configuration file and convert to "LLMConfig"
         """
-
         import yaml
 
-        if os.path.exists(VioletConfig.config_path) is False:
+        config = VioletConfig.get_config()
+
+        if os.path.exists(config.config_path) is False:
             llm_config = LLMConfig.default_config('gpt-4')
 
-            with open(VioletConfig.config_path, "w", encoding="utf-8") as f:
+            with open(config.config_path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(
                     llm_config.to_dict(),
                     f,
@@ -280,7 +181,7 @@ class VioletConfig:
 
             return llm_config
 
-        with open(VioletConfig.config_path, "r") as f:
+        with open(config.config_path, "r") as f:
             agent_config = yaml.safe_load(f)
 
         return LLMConfig.model_validate(agent_config)
@@ -292,11 +193,13 @@ class VioletConfig:
         """
         import yaml
 
-        if os.path.exists(VioletConfig.embedding_config_path) is False:
+        config = VioletConfig.get_config()
+
+        if os.path.exists(config.embedding_config_path) is False:
             embedding_config = EmbeddingConfig.default_config(
                 'text-embedding-3-small')
 
-            with open(VioletConfig.embedding_config_path, "w", encoding="utf-8") as f:
+            with open(config.embedding_config_path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(
                     embedding_config.to_dict(),
                     f,
@@ -306,7 +209,7 @@ class VioletConfig:
 
             return embedding_config
 
-        with open(VioletConfig.embedding_config_path, "r") as f:
+        with open(config.embedding_config_path, "r") as f:
             embedding_config = yaml.safe_load(f)
 
         return EmbeddingConfig.model_validate(embedding_config)
@@ -317,7 +220,9 @@ class VioletConfig:
         Get violet path tts_infer.yaml (.violet/tts_infer.yaml) configuration file and convert to "TTS_Config"
         """
 
-        return TTS_Config(VioletConfig.tts_config_path)
+        config = VioletConfig.get_config()
+
+        return TTS_Config(config.tts_config_path)
 
     @staticmethod
     def get_whisper_config() -> WhisperConfig:
@@ -326,10 +231,12 @@ class VioletConfig:
         """
         import yaml
 
-        if os.path.exists(VioletConfig.violet_config_path) is False:
+        config = VioletConfig.get_config()
+
+        if os.path.exists(config.violet_config_path) is False:
             whisper_config = WhisperConfig.default_config()
 
-            with open(VioletConfig.whisper_config_path, "w", encoding="utf-8") as f:
+            with open(config.whisper_config_path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(
                     whisper_config.to_dict(),
                     f,
@@ -339,7 +246,7 @@ class VioletConfig:
 
             return whisper_config
 
-        with open(VioletConfig.whisper_config_path, "r") as f:
+        with open(config.whisper_config_path, "r") as f:
             whisper_config = yaml.safe_load(f)
 
         return WhisperConfig.model_validate(whisper_config)
