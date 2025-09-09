@@ -45,7 +45,7 @@ export default function PersonaDetails({
 
   return (
     <div className='h-full w-full'>
-      <header className='absolute w-full h-12 top-0 flex flex-row justify-center items-center gap-1 p-3 bg-[var(--sidebar-primary-foreground)]'>
+      {/* <header className='absolute w-full h-12 top-0 flex flex-row justify-center items-center gap-1 p-3 bg-[var(--sidebar-primary-foreground)]'>
         <Button
           size='icon'
           onClick={() => {
@@ -59,7 +59,7 @@ export default function PersonaDetails({
         <Button className='ml-auto'>
           <SaveIcon /> Apply
         </Button>
-      </header>
+      </header> */}
 
       <DraggableWrapper
         title={persona?.name}

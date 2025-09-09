@@ -10,7 +10,6 @@ router = APIRouter(prefix="/persona", tags=['persona'])
 @router.get('/activate')
 async def get_activate_persona(server: SyncServer = Depends(get_server)):
     personas = server.persona_manager.get_activated_persona()
-
     return personas
 
 

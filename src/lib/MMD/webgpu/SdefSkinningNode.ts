@@ -21,6 +21,8 @@ class SdefSkinningNode extends SkinningNode {
       bindMatrixInverseNode,
     } = this;
 
+    debugger;
+
     const boneMatX = boneMatrices.element(skinIndexNode.x);
     const boneMatY = boneMatrices.element(skinIndexNode.y);
     const boneMatZ = boneMatrices.element(skinIndexNode.z);

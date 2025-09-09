@@ -108,17 +108,6 @@ class MMDLoader extends Loader {
   animationBuilder: AnimationBuilder;
   animationPath: any;
   params: any;
-  loadAsync: (
-    url: string,
-    onProgress?: (event: ProgressEvent<EventTarget>) => void
-  ) => Promise<{
-    data: PMXModel;
-    mesh: SkinnedMesh;
-    geometry: MMDGeometry;
-    material: (MeshPhysicalMaterial | MMDToonMaterial)[];
-    skeleton: Skeleton;
-    rootBones: Bone[];
-  }>;
 
   constructor(manager?: LoadingManager) {
     if (manager) {
@@ -1131,7 +1120,6 @@ class MaterialBuilder {
       };
 
       let newMaterial: MMDMaterial;
-
       if (shaderParams.isWebGPU && shaderParams.enableSdef) {
         newMaterial = new MMDMaterial(params);
         newMaterial.buildSkinningNode = (mesh) =>

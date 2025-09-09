@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { Model } from './model';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { MMDLoader } from '@/lib/MMD/MMDLoader';
+import { initBones, MMDLoader } from '@/lib/MMD/MMDLoader';
+import { Skeleton, SkinnedMesh } from 'three';
 
 export class Viewer {
   public isReady: boolean;
@@ -129,14 +130,28 @@ export class Viewer {
     this._camera.updateProjectionMatrix();
   }
 
-  public setScene() {
+  public async setScene() {
     const mmdLoader = new MMDLoader();
+    const params = { enableSdef: true, enablePBR: true, isWebGPU: false };
 
-    mmdLoader.load('/scene.pmx', (object) => {
-      const mesh = object;
+    mmdLoader.setModelParams(params);
+    const model = await mmdLoader.loadAsync('/scene.pmx');
 
-      this._scene.add(mesh);
-    });
+    const { data, geometry, material } = model;
+
+    const mesh = new SkinnedMesh(geometry, material);
+    mesh.name = data.metadata.modelName;
+    const origPos = mesh.position.clone();
+    mesh.position.set(0, 0, 0);
+    const [bones, rootBones] = initBones(geometry);
+    for (const root of rootBones) {
+      mesh.add(root);
+    }
+    const skeleton = new Skeleton(bones);
+    mesh.bind(skeleton);
+    mesh.position.copy(origPos);
+
+    this._scene.add(mesh);
   }
 
   /**
