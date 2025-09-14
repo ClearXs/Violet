@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  transpilePackages: ['three'],
   rewrites: async () => {
     return [
       {

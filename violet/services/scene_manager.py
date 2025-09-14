@@ -146,15 +146,13 @@ class SceneManager:
     @enforce_types
     def list_scenes(self,
                     after: Optional[str] = None,
-                    limit: Optional[int] = 50,
-                    actor: PydanticUser = None) -> List[PydanticScene]:
+                    limit: Optional[int] = 50) -> List[PydanticScene]:
         """List all scenes with optional pagination."""
         with self.session_maker() as session:
             scenes = SceneModel.list(
                 db_session=session,
                 cursor=after,
                 limit=limit,
-                actor=actor,
             )
             return [scene.to_pydantic() for scene in scenes]
 

@@ -16,9 +16,7 @@ async def list_scenes(
     server: SyncServer = Depends(get_server)
 ) -> List[PydanticScene]:
     """List all scenes with optional pagination."""
-    # TODO: Get actual user from authentication
-    actor = PydanticUser(id="default-user")  # Replace with actual user
-    return server.scene_manager.list_scenes(after=after, limit=limit, actor=actor)
+    return server.scene_manager.list_scenes(after=after, limit=limit)
 
 
 @router.get('/get_by_id/{scene_id}')

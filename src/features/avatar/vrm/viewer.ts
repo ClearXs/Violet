@@ -135,7 +135,7 @@ export class Viewer {
     const params = { enableSdef: true, enablePBR: true, isWebGPU: false };
 
     mmdLoader.setModelParams(params);
-    const model = await mmdLoader.loadAsync('/scene.pmx');
+    const model = await mmdLoader.loadAsync('/SJ_Skybox.pmx');
 
     const { data, geometry, material } = model;
 

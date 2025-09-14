@@ -187,6 +187,8 @@ const SceneCard = ({
 export default function SettingsScenes({ config }: SettingsSceneProps) {
   const sceneApi = useSceneApi();
 
+  const router = useRouter();
+
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingScene, setEditingScene] = useState<Scene | null>(null);
@@ -209,13 +211,7 @@ export default function SettingsScenes({ config }: SettingsSceneProps) {
   }, []);
 
   const handleView = (scene: Scene) => {
-    const layout = useLayout();
-    layout.hide();
-    setTimeout(() => {
-      // Navigate to scene detail view
-      // router.push(`/scenes/${scene.id}`);
-      toast.info(`Viewing scene "${scene.name}"`);
-    }, 100);
+    router.push(`/scenes/${scene.id}`);
   };
 
   const handleEdit = (scene: Scene) => {
