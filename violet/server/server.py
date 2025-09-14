@@ -1,5 +1,6 @@
 # inspecting tools
 from violet.services.persona_manager import PersonaManager
+from violet.services.scene_manager import SceneManager
 from violet.settings import model_settings, settings, tool_settings
 from violet.config import VioletConfig
 from sqlalchemy.orm import sessionmaker
@@ -425,6 +426,9 @@ class SyncServer(Server):
         # Persona Manager
         self.persona_manager = PersonaManager()
         self.persona_manager.create_default_persona(actor=self.default_user)
+
+        self.scene_manager = SceneManager()
+        self.scene_manager.create_default_scene(actor=self.default_user)
 
         # collect providers (always has Violet as a default)
         self._enabled_providers: List[Provider] = []

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile
 
 from violet.server.context import get_server
 from violet.server.server import SyncServer
@@ -28,3 +28,8 @@ async def get_persona_by_id(id: str, server: SyncServer = Depends(get_server)):
 async def update_persona_config(persona: Personas):
     persona.save_config()
     return True
+
+
+@router.post("/upload_update_config")
+async def upload(file: UploadFile, persona: Personas):
+    pass

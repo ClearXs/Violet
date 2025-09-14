@@ -26,8 +26,6 @@ config = None
 class VioletConfig(Dict):
     base_path: str = VIOLET_DIR
 
-    violet_config_path = os.path.join(base_path, "config")
-
     # config path
     violet_config_path: str = None
     config_path: str = None
@@ -42,14 +40,18 @@ class VioletConfig(Dict):
     persona: str = DEFAULT_PERSONA
     human: str = DEFAULT_HUMAN
 
+    # ==== resources path ====
     # model storage path
     model_storage_path: str = None
     # file storage path
     file_storage_path: str = None
     # image storage path
     image_storage_path: str = None
-    # persona assert folder path
+    # persona asset folder
     persona_path: str = None
+    # scene asset folder
+    scene_path: str = None
+    # save prompts
     prompts_path: str = None
     # tmp dir
     tmp_dir: str = None
@@ -97,6 +99,7 @@ class VioletConfig(Dict):
         self.file_storage_path = os.path.join(self.base_path, "files")
         self.image_storage_path = os.path.join(self.base_path, "images")
         self.persona_path = os.path.join(self.base_path, "personas")
+        self.scene_path = os.path.join(self.base_path, 'scenes')
         self.prompts_path = os.path.join(self.base_path, "prompts")
         self.tmp_dir = os.path.join(self.base_path, "tmp")
 
@@ -105,6 +108,7 @@ class VioletConfig(Dict):
         self.create_model_storage_dir()
         self.create_file_storage_dir()
         self.create_personas_dir()
+        self.create_scene_dir()
         self.create_prompts_dir()
         self.create_config_dir()  # create dirs
 
@@ -138,6 +142,11 @@ class VioletConfig(Dict):
         persona_path = self.persona_path
         if os.path.exists(persona_path) is False:
             os.makedirs(persona_path, exist_ok=True)
+
+    def create_scene_dir(self):
+        scene_path = self.scene_path
+        if os.path.exists(scene_path) is False:
+            os.makedirs(scene_path, exist_ok=True)
 
     def create_prompts_dir(self):
         prompts_path = self.prompts_path

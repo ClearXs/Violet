@@ -1,8 +1,5 @@
 import { SidebarData } from '@/components/layout/types';
-import {
-  IconBook2,
-  IconBulbFilled,
-} from '@tabler/icons-react';
+import { IconBook2, IconBulbFilled } from '@tabler/icons-react';
 import { AudioWaveform, Command, GalleryVerticalEnd } from 'lucide-react';
 
 export const sidebarData: SidebarData = {
@@ -21,6 +18,12 @@ export const sidebarData: SidebarData = {
           id: 'personas',
           title: 'Personas',
           url: '/personas',
+          icon: IconBook2,
+        },
+        {
+          id: 'scenes',
+          title: 'Scenes',
+          url: '/scenes',
           icon: IconBook2,
         },
         {
